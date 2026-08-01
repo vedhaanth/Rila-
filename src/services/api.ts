@@ -246,8 +246,15 @@ export const api = {
       body: JSON.stringify(data)
     });
     if (!res.ok) {
-      const error = await res.json().catch(() => ({ error: 'Failed to register' }));
-      throw new Error(error.error || 'Failed to register customer');
+      const text = await res.text();
+      let errorMessage = 'Failed to register customer';
+      try {
+        const parsed = JSON.parse(text);
+        errorMessage = parsed?.error || parsed?.message || errorMessage;
+      } catch {
+        if (text) errorMessage = text;
+      }
+      throw new Error(errorMessage);
     }
     return await res.json();
   },

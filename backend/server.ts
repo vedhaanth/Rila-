@@ -119,19 +119,19 @@ async function startServer(app: express.Express, shouldListen = true) {
   app.post('/api/customers/register', async (req, res) => {
     try {
       const { name, email, phone, address, password } = req.body;
-      if (!name || !email) {
-        return res.status(400).json({ error: 'Customer name and email are required' });
+      if (!name || !email || !password) {
+        return res.status(400).json({ error: 'Name, email, and password are required' });
       }
       const normalizedEmail = String(email).trim().toLowerCase();
       const customer = await CustomerModel.findOneAndUpdate(
         { email: normalizedEmail },
         {
           $set: {
-            name,
-            phone: phone || '',
-            address: address || '',
+            name: String(name).trim(),
+            phone: String(phone || '').trim(),
+            address: String(address || '').trim(),
             email: normalizedEmail,
-            password: password || ''
+            password: String(password).trim()
           },
           $setOnInsert: {
             user_id: `CUST-${Date.now().toString().slice(-5)}`,
@@ -142,7 +142,7 @@ async function startServer(app: express.Express, shouldListen = true) {
       ).select('-password');
       res.json(customer);
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: err.message || 'Unable to register customer' });
     }
   });
 
