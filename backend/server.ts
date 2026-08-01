@@ -1047,8 +1047,23 @@ async function initApp() {
 }
 
 export default async function handler(req: express.Request, res: express.Response) {
-  const app = await initApp();
-  app(req, res);
+  try {
+    const app = await initApp();
+    // forward the request to the Express app
+    return app(req, res);
+  } catch (err: any) {
+    const message = err?.message || String(err) || 'unknown_error';
+    const payload = { error: 'server_initialization_failed', message };
+    try {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(payload));
+      return;
+    } catch (e) {
+      // if response writing also fails, throw to let platform log it
+      throw err;
+    }
+  }
 }
 
 if (process.env.VERCEL !== '1') {
