@@ -1,13 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 
 async function loadHandler() {
-  try {
-    const serverModule = await import('../dist/server.cjs');
-    return serverModule?.default || serverModule;
-  } catch (distError) {
-    const serverModule = await import('../backend/server');
-    return serverModule?.default || serverModule;
-  }
+  const serverModule = await import('../dist/server.cjs');
+  return serverModule?.default || serverModule;
 }
 
 export default async function (req: IncomingMessage, res: ServerResponse) {
