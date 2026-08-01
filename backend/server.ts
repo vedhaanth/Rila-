@@ -58,10 +58,12 @@ async function removeAdmin1SampleData() {
 
 async function startServer(app: express.Express, shouldListen = true) {
   const PORT = Number(process.env.PORT || 3000);
+  let lastDbError: string | null = null;
 
   try {
     const connection = await connectToDatabase();
     console.log(`Connected to MongoDB at ${connection.host}`);
+    lastDbError = null;
     await seedDatabase();
     if (process.env.NODE_ENV !== 'production') {
       await removeAdmin1SampleData();
@@ -69,6 +71,7 @@ async function startServer(app: express.Express, shouldListen = true) {
     console.log('Database collections initialized and seeded.');
   } catch (err) {
     console.error('Failed to connect to MongoDB:', err);
+    lastDbError = (err as any)?.message || String(err);
     if (!process.env.VERCEL) process.exit(1);
   }
 
@@ -95,7 +98,9 @@ async function startServer(app: express.Express, shouldListen = true) {
 
   app.get('/api/health', (req, res) => {
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-    res.json({ status: 'ok', dbStatus, time: new Date().toISOString() });
+    const payload: any = { status: 'ok', dbStatus, time: new Date().toISOString() };
+    if (lastDbError) payload.dbError = lastDbError;
+    res.json(payload);
   });
 
   app.post('/api/admin/login', async (req, res) => {
