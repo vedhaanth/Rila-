@@ -1,0 +1,1051 @@
+import 'dotenv/config';
+import express from 'express';
+import path from 'path';
+import mongoose from 'mongoose';
+import { createServer as createViteServer } from 'vite';
+import { AdminId, OrderStatus, EmailLog } from '../src/types';
+import { calculateFinanceMetrics } from '../src/utils/finance.js';
+import { connectToDatabase } from '../src/db/connect';
+
+import ProductModel from '../src/models/Product';
+import OrderModel from '../src/models/Order';
+import BillModel from '../src/models/Bill';
+import ExpenseModel from '../src/models/Expense';
+import SupplierModel from '../src/models/Supplier';
+import FeedbackModel from '../src/models/Feedback';
+import EmailLogModel from '../src/models/EmailLog';
+import AdminModel from '../src/models/Admin';
+import CustomerModel from '../src/models/Customer';
+import { ADMIN_PROFILES } from '../src/data/seedData';
+
+async function seedDatabase() {
+  const db = mongoose.connection.db;
+  if (!db) return;
+
+  const collectionNames = ['products', 'orders', 'admins', 'customers', 'bills', 'expenses', 'suppliers', 'feedbacks', 'emaillogs'];
+  for (const name of collectionNames) {
+    try {
+      await db.createCollection(name);
+    } catch (err: any) {
+      if (!/already exists/i.test(err?.message || '')) {
+        console.warn(`Unable to create collection ${name}:`, err?.message || err);
+      }
+    }
+  }
+
+  const adminSeedEntries = Object.values(ADMIN_PROFILES).map((profile) => ({
+    ...profile,
+    password: 'admin123'
+  }));
+
+  await Promise.all(
+    adminSeedEntries.map((admin) => {
+      const { admin_id, ...adminData } = admin;
+      return AdminModel.findOneAndUpdate(
+        { admin_id },
+        { $set: adminData, $setOnInsert: { admin_id } },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+      );
+    })
+  );
+}
+
+async function removeAdmin1SampleData() {
+  await ProductModel.deleteMany({ admin_owner: 'admin1' });
+  await OrderModel.deleteMany({ admin_id: 'admin1' });
+  await BillModel.deleteMany({ admin_id: 'admin1' });
+}
+
+async function startServer(app: express.Express, shouldListen = true) {
+  const PORT = Number(process.env.PORT || 3000);
+
+  try {
+    const connection = await connectToDatabase();
+    console.log(`Connected to MongoDB at ${connection.host}`);
+    await seedDatabase();
+    if (process.env.NODE_ENV !== 'production') {
+      await removeAdmin1SampleData();
+    }
+    console.log('Database collections initialized and seeded.');
+  } catch (err) {
+    console.error('Failed to connect to MongoDB:', err);
+    if (!process.env.VERCEL) process.exit(1);
+  }
+
+  app.use(express.json({ limit: '10mb' }));
+
+  async function triggerEmail(
+    recipient: string,
+    subject: string,
+    body: string,
+    type: EmailLog['type']
+  ) {
+    const log = new EmailLogModel({
+      log_id: `EML-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      recipient,
+      subject,
+      body,
+      type,
+      sent_at: new Date().toISOString(),
+      status: 'Sent'
+    });
+    await log.save();
+    return log;
+  }
+
+  app.get('/api/health', (req, res) => {
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    res.json({ status: 'ok', dbStatus, time: new Date().toISOString() });
+  });
+
+  app.post('/api/admin/login', async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      const admin = await AdminModel.findOne({ email, password });
+      if (!admin) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+      res.json(admin);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/customers/register', async (req, res) => {
+    try {
+      const { name, email, phone, address, password } = req.body;
+      if (!name || !email) {
+        return res.status(400).json({ error: 'Customer name and email are required' });
+      }
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const customer = await CustomerModel.findOneAndUpdate(
+        { email: normalizedEmail },
+        {
+          $set: {
+            name,
+            phone: phone || '',
+            address: address || '',
+            email: normalizedEmail,
+            password: password || ''
+          },
+          $setOnInsert: {
+            user_id: `CUST-${Date.now().toString().slice(-5)}`,
+            role: 'customer'
+          }
+        },
+        { upsert: true, returnDocument: 'after' }
+      ).select('-password');
+      res.json(customer);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/customers/login', async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const customer = await CustomerModel.findOne({ email: normalizedEmail });
+      if (!customer) {
+        return res.status(401).json({ error: 'Customer account not found' });
+      }
+      if (customer.password) {
+        if (!password || password !== customer.password) {
+          return res.status(401).json({ error: 'Invalid email or password' });
+        }
+      }
+      const { password: _, ...customerResponse } = customer.toObject();
+      res.json(customerResponse);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/admins', async (req, res) => {
+    try {
+      const admins = await AdminModel.find();
+      res.json(admins);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/admins/:admin_id', async (req, res) => {
+    try {
+      const { admin_id } = req.params;
+      const updateData = req.body;
+      const admin = await AdminModel.findOneAndUpdate(
+        { admin_id },
+        updateData,
+        { returnDocument: 'after', upsert: true }
+      );
+      res.json(admin);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/products', async (req, res) => {
+    try {
+      const { admin_owner, category, search } = req.query;
+      const filter: any = {};
+
+      if (admin_owner && admin_owner !== 'all') {
+        filter.admin_owner = admin_owner;
+      }
+      if (category && category !== 'All') {
+        filter.category = new RegExp(`^${category}$`, 'i');
+      }
+      if (search) {
+        const q = String(search);
+        filter.$or = [
+          { product_name: { $regex: q, $options: 'i' } },
+          { description: { $regex: q, $options: 'i' } },
+          { category: { $regex: q, $options: 'i' } }
+        ];
+      }
+
+      const products = await ProductModel.find(filter).sort({ createdAt: -1 });
+      res.json(products);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/products/:id', async (req, res) => {
+    try {
+      const product = await ProductModel.findOne({ product_id: req.params.id });
+      if (!product) {
+        return res.status(404).json({ error: 'Product not found' });
+      }
+      res.json(product);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/products', async (req, res) => {
+    try {
+      const pData = req.body;
+      if (!pData.product_name || !pData.price || !pData.admin_owner) {
+        return res.status(400).json({ error: 'Missing required product fields' });
+      }
+
+      const newProduct = new ProductModel({
+        product_id: `PROD-${Date.now().toString().slice(-4)}`,
+        product_name: pData.product_name,
+        category: pData.category || 'General',
+        image: pData.image || '',
+        price: Number(pData.price),
+        original_price: Number(pData.original_price || pData.price),
+        discount: Number(pData.discount || 0),
+        stock: Number(pData.stock || 0),
+        admin_owner: pData.admin_owner as AdminId,
+        description: pData.description || '',
+        rating: 0,
+        reviews_count: 0,
+        featured: Boolean(pData.featured),
+        specifications: pData.specifications || {}
+      });
+
+      await newProduct.save();
+      res.status(201).json(newProduct);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/products/:id', async (req, res) => {
+    try {
+      const updateData = { ...req.body };
+      if (updateData.price !== undefined) updateData.price = Number(updateData.price);
+      if (updateData.stock !== undefined) updateData.stock = Number(updateData.stock);
+
+      const product = await ProductModel.findOneAndUpdate(
+        { product_id: req.params.id },
+        updateData,
+        { returnDocument: 'after' }
+      );
+      if (!product) {
+        return res.status(404).json({ error: 'Product not found' });
+      }
+      res.json(product);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/products/:id', async (req, res) => {
+    try {
+      const result = await ProductModel.deleteOne({ product_id: req.params.id });
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ error: 'Product not found' });
+      }
+      res.json({ success: true, message: 'Product deleted' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/products/seed-sample', async (req, res) => {
+    const products = await ProductModel.find();
+    res.json({ success: true, count: products.length, products });
+  });
+
+  app.post('/api/products/clear-all', async (req, res) => {
+    await ProductModel.deleteMany({});
+    res.json({ success: true, count: 0, products: [] });
+  });
+
+  app.get('/api/orders', async (req, res) => {
+    try {
+      const { admin_id, customer_email } = req.query;
+      const filter: any = {};
+
+      if (admin_id && admin_id !== 'all') {
+        filter.admin_id = admin_id;
+      }
+      if (customer_email) {
+        filter.customer_email = new RegExp(`^${customer_email}$`, 'i');
+      }
+
+      const orders = await OrderModel.find(filter).sort({ createdAt: -1 });
+      res.json(orders);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/orders', async (req, res) => {
+    try {
+      const {
+        customer_id,
+        customer_name,
+        customer_email,
+        customer_phone,
+        shipping_address,
+        items,
+        payment_method
+      } = req.body;
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'Cart items cannot be empty' });
+      }
+      if (!customer_name || !customer_email || !customer_phone || !shipping_address) {
+        return res.status(400).json({ error: 'Customer name, email, phone, and shipping address are required' });
+      }
+
+      const masterOrderId = `MST-${Date.now().toString().slice(-5)}`;
+      const createdOrders: any[] = [];
+      const createdBills: any[] = [];
+
+      const itemsByAdmin: Record<string, any[]> = {};
+      for (const item of items) {
+        const owner = item.admin_owner || 'admin1';
+        if (!itemsByAdmin[owner]) itemsByAdmin[owner] = [];
+        itemsByAdmin[owner].push(item);
+      }
+
+      for (const it of items) {
+        await ProductModel.updateOne(
+          { product_id: it.product_id },
+          { $inc: { stock: -it.quantity } }
+        );
+      }
+
+      let orderIndex = 0;
+      for (const [adminId, adminItems] of Object.entries(itemsByAdmin)) {
+        const adminDoc = await AdminModel.findOne({ admin_id: adminId });
+        const adminEmail = adminDoc?.email || `${adminId}@rilastore.com`;
+
+        const subtotal = adminItems.reduce((acc: number, it: any) => acc + it.price * it.quantity, 0);
+        const gst_amount = Number((subtotal * 0.05).toFixed(2));
+        const total_amount = Number((subtotal + gst_amount).toFixed(2));
+
+        const suffix = `${Date.now().toString().slice(-4)}${orderIndex}`;
+        const subOrderId = `ORD-${suffix}`;
+        const trackingNo = `TRK-${Math.floor(100000 + Math.random() * 900000)}`;
+        orderIndex++;
+
+        const customerUser = await CustomerModel.findOneAndUpdate(
+          { email: customer_email.trim().toLowerCase() },
+          {
+            $set: {
+              name: customer_name,
+              phone: customer_phone,
+              address: shipping_address,
+              email: customer_email.trim().toLowerCase(),
+              role: 'customer'
+            },
+            $setOnInsert: {
+              user_id: customer_id || `CUST-${Date.now().toString().slice(-4)}`
+            }
+          },
+          { upsert: true, returnDocument: 'after' }
+        );
+
+        const isCashOnDelivery = String(payment_method).trim() === 'Cash on Delivery';
+        const newOrder = new OrderModel({
+          order_id: subOrderId,
+          master_order_id: masterOrderId,
+          customer_id: customerUser?.user_id || customer_id || `CUST-${Date.now().toString().slice(-4)}`,
+          customer_name,
+          customer_email,
+          customer_phone,
+          shipping_address,
+          items: adminItems,
+          subtotal,
+          gst_amount,
+          discount_amount: 0,
+          total_amount,
+          admin_id: adminId,
+          status: 'Pending',
+          payment_method: payment_method || 'UPI',
+          payment_status: isCashOnDelivery ? 'Pending' : 'Paid',
+          created_at: new Date().toISOString(),
+          tracking_number: trackingNo,
+          timeline: [
+            {
+              status: 'Pending',
+              timestamp: new Date().toLocaleString(),
+              note: isCashOnDelivery
+                ? 'Order placed. Payment will be collected on delivery.'
+                : 'Order placed & payment verified'
+            }
+          ]
+        });
+
+        await newOrder.save();
+        createdOrders.push(newOrder);
+
+        const bill = new BillModel({
+          bill_id: `BILL-${suffix}`,
+          invoice_number: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+          bill_type: 'Online',
+          master_order_id: masterOrderId,
+          order_id: subOrderId,
+          customer_id: newOrder.customer_id,
+          customer_name: newOrder.customer_name,
+          customer_phone: newOrder.customer_phone,
+          customer_email: newOrder.customer_email,
+          shipping_address: newOrder.shipping_address,
+          products: adminItems.map((i: any) => ({
+            product_id: i.product_id,
+            product_name: i.product_name,
+            quantity: i.quantity,
+            price: i.price,
+            discount: 0,
+            total: i.price * i.quantity
+          })),
+          items: adminItems.map((i: any) => ({
+            product_id: i.product_id,
+            product_name: i.product_name,
+            quantity: i.quantity,
+            price: i.price,
+            discount: 0,
+            total: i.price * i.quantity
+          })),
+          subtotal,
+          tax_gst: gst_amount,
+          discount_total: 0,
+          grand_total: total_amount,
+          payment_method: newOrder.payment_method,
+          payment_status: isCashOnDelivery ? 'Pending' : 'Paid',
+          admin_id: adminId,
+          created_at: new Date().toISOString(),
+          notes: isCashOnDelivery ? `COD Checkout Order #${subOrderId}` : `Online Checkout Order #${subOrderId}`
+        });
+
+        await bill.save();
+        createdBills.push(bill);
+
+        triggerEmail(
+          adminEmail,
+          `🚨 New Order Alert #${subOrderId}`,
+          `You have received order #${subOrderId} from ${newOrder.customer_name} for ₹${total_amount.toFixed(2)}. Log into ERP to process and pack this shipment.`,
+          'Admin Order Alert'
+        ).catch(console.error);
+      }
+
+      triggerEmail(
+        customer_email,
+        `Order Confirmation #${masterOrderId} - RILA`,
+        `Thank you for your order #${masterOrderId}! Your items will be processed shortly. Track progress directly in your customer dashboard.`,
+        'Order Confirmation'
+      ).catch(console.error);
+
+      res.status(201).json({
+        success: true,
+        master_order_id: masterOrderId,
+        orders: createdOrders,
+        bills: createdBills
+      });
+    } catch (err: any) {
+      console.error('Order creation error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/orders/:id/status', async (req, res) => {
+    try {
+      const { status, note } = req.body;
+      const validStatuses: OrderStatus[] = [
+        'Pending',
+        'Confirmed',
+        'Packed',
+        'Shipped',
+        'Delivered',
+        'Cancelled'
+      ];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Invalid order status' });
+      }
+
+      const order = await OrderModel.findOne({ order_id: req.params.id });
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      order.status = status as OrderStatus;
+      order.timeline.push({
+        status: status as OrderStatus,
+        timestamp: new Date().toLocaleString(),
+        note: note || `Order status updated to ${status}`
+      });
+
+      await order.save();
+
+      const emailSubject = status === 'Shipped' ? 'Shipping Update' : status === 'Delivered' ? 'Delivery Confirmation' : 'Order Status Update';
+      await triggerEmail(
+        order.customer_email,
+        `${emailSubject} for Order #${order.order_id}`,
+        `Your order #${order.order_id} status has been updated to "${status}". Tracking Number: ${order.tracking_number}.`,
+        status === 'Shipped' ? 'Shipping Update' : status === 'Delivered' ? 'Delivery Confirmation' : 'Order Confirmation'
+      );
+
+      res.json(order);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/bills', async (req, res) => {
+    try {
+      const { admin_id } = req.query;
+      const filter: any = {};
+      if (admin_id && admin_id !== 'all') {
+        filter.admin_id = admin_id;
+      }
+      const bills = await BillModel.find(filter).sort({ createdAt: -1 });
+      res.json(bills);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/bills/manual', async (req, res) => {
+    try {
+      const {
+        customer_name,
+        customer_phone,
+        customer_email,
+        products,
+        payment_method,
+        discount_flat,
+        notes
+      } = req.body;
+
+      if (!products || !Array.isArray(products) || products.length === 0) {
+        return res.status(400).json({ error: 'Products are required' });
+      }
+      if (!customer_name || !customer_phone) {
+        return res.status(400).json({ error: 'Customer name and phone are required' });
+      }
+
+      const adminDoc = await AdminModel.findOne();
+      const admin_id = adminDoc?.admin_id || 'admin1';
+      const adminBusinessName = adminDoc?.business_name || 'RILA';
+
+      const subtotal = products.reduce((acc: number, item: any) => {
+        const lineTotal = (Number(item.price) - Number(item.discount || 0)) * Number(item.quantity);
+        return acc + lineTotal;
+      }, 0);
+
+      const flatDisc = Number(discount_flat || 0);
+      const discountedSubtotal = Math.max(0, subtotal - flatDisc);
+      const tax_gst = Number((discountedSubtotal * 0.18).toFixed(2));
+      const grand_total = Number((discountedSubtotal + tax_gst).toFixed(2));
+
+      const invoiceNo = `POS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      for (const it of products) {
+        await ProductModel.updateOne(
+          { product_id: it.product_id },
+          { $inc: { stock: -Number(it.quantity) } }
+        );
+      }
+
+      const billProducts = products.map((p: any) => ({
+        product_id: p.product_id,
+        product_name: p.product_name,
+        quantity: Number(p.quantity),
+        price: Number(p.price),
+        discount: Number(p.discount || 0),
+        total: (Number(p.price) - Number(p.discount || 0)) * Number(p.quantity)
+      }));
+
+      const newBill = new BillModel({
+        bill_id: `BILL-${Date.now().toString().slice(-5)}`,
+        invoice_number: invoiceNo,
+        bill_type: 'Manual',
+        customer_name,
+        customer_phone,
+        customer_email: customer_email || '',
+        products: billProducts,
+        items: billProducts,
+        subtotal,
+        tax_gst,
+        discount_total: flatDisc,
+        grand_total,
+        payment_method: payment_method || 'Cash',
+        payment_status: 'Paid',
+        admin_id: admin_id,
+        created_at: new Date().toISOString(),
+        notes: notes || 'Vyapar Retail Counter POS Bill'
+      });
+
+      await newBill.save();
+
+      if (customer_email) {
+        await triggerEmail(
+          customer_email,
+          `Tax Invoice #${invoiceNo} - ${adminBusinessName}`,
+          `Thank you for shopping with us! Attached is your GST Tax Invoice #${invoiceNo}.`,
+          'Invoice'
+        );
+      }
+
+      res.status(201).json(newBill);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/expenses', async (req, res) => {
+    try {
+      const { admin_id, category } = req.query;
+      const filter: any = {};
+
+      if (admin_id && admin_id !== 'all') {
+        filter.admin_id = admin_id;
+      }
+      if (category && category !== 'All') {
+        filter.category = category;
+      }
+
+      const expenses = await ExpenseModel.find(filter).sort({ createdAt: -1 });
+      res.json(expenses);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/expenses', async (req, res) => {
+    try {
+      const {
+        admin_id,
+        category,
+        amount,
+        date,
+        description,
+        receipt_ref,
+        vendor,
+        invoice_number,
+        purchase_order_number,
+        gst,
+        discount,
+        payment_method,
+        payment_status,
+        notes
+      } = req.body;
+
+      if (!admin_id || !amount || !category) {
+        return res.status(400).json({ error: 'Missing admin_id, category, or amount' });
+      }
+
+      const newExpense = new ExpenseModel({
+        expense_id: `EXP-${Date.now().toString().slice(-4)}`,
+        admin_id: admin_id as AdminId,
+        category,
+        amount: Number(amount),
+        date: date || new Date().toISOString().split('T')[0],
+        description: description || 'Business operational expense',
+        receipt_ref: receipt_ref || `REF-${Math.floor(1000 + Math.random() * 9000)}`,
+        vendor: vendor || '',
+        invoice_number: invoice_number || '',
+        purchase_order_number: purchase_order_number || '',
+        gst: Number(gst || 0),
+        discount: Number(discount || 0),
+        payment_method: payment_method || 'Cash',
+        payment_status: payment_status || 'Paid',
+        notes: notes || ''
+      });
+
+      await newExpense.save();
+      res.status(201).json(newExpense);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/expenses/:id', async (req, res) => {
+    try {
+      const updateData = { ...req.body };
+      if (updateData.amount !== undefined) updateData.amount = Number(updateData.amount);
+
+      const expense = await ExpenseModel.findOneAndUpdate(
+        { expense_id: req.params.id },
+        updateData,
+        { returnDocument: 'after' }
+      );
+      if (!expense) {
+        return res.status(404).json({ error: 'Expense record not found' });
+      }
+      res.json(expense);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/expenses/:id', async (req, res) => {
+    try {
+      await ExpenseModel.deleteOne({ expense_id: req.params.id });
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/suppliers', async (req, res) => {
+    try {
+      const { admin_id } = req.query;
+      const filter: any = {};
+      if (admin_id && admin_id !== 'all') {
+        filter.admin_id = admin_id;
+      }
+      const suppliers = await SupplierModel.find(filter).sort({ createdAt: -1 });
+      res.json(suppliers);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/suppliers', async (req, res) => {
+    try {
+      const {
+        admin_id,
+        supplier_name,
+        contact_person,
+        phone,
+        email,
+        address,
+        categories_supplied,
+        company_name,
+        gst_number,
+        products_supplied,
+        outstanding_balance,
+        purchase_history
+      } = req.body;
+      if (!admin_id || !supplier_name || !contact_person || !phone) {
+        return res.status(400).json({ error: 'Missing required supplier fields' });
+      }
+
+      const newSupplier = new SupplierModel({
+        supplier_id: `SUP-${Date.now().toString().slice(-4)}`,
+        admin_id: admin_id as AdminId,
+        supplier_name,
+        contact_person,
+        phone,
+        email: email || '',
+        address: address || '',
+        company_name: company_name || supplier_name,
+        gst_number: gst_number || '',
+        products_supplied: Array.isArray(products_supplied) ? products_supplied : [products_supplied || 'General'],
+        outstanding_balance: Number(outstanding_balance || 0),
+        purchase_history: purchase_history || '',
+        categories_supplied: Array.isArray(categories_supplied) ? categories_supplied : [categories_supplied || 'General']
+      });
+
+      await newSupplier.save();
+      res.status(201).json(newSupplier);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/suppliers/:id', async (req, res) => {
+    try {
+      await SupplierModel.deleteOne({ supplier_id: req.params.id });
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/feedback', async (req, res) => {
+    try {
+      const { product_id } = req.query;
+      const filter: any = {};
+      if (product_id) filter.product_id = product_id;
+
+      const feedback = await FeedbackModel.find(filter).sort({ createdAt: -1 });
+      res.json(feedback);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/feedback', async (req, res) => {
+    try {
+      const { customer_name, customer_email, rating, type, message, product_id, product_name, title, verified_purchase } = req.body;
+      if (!customer_name || !customer_email || !message) {
+        return res.status(400).json({ error: 'Customer name, email, and message are required' });
+      }
+
+      const newFbd = new FeedbackModel({
+        feedback_id: `FBD-${Date.now().toString().slice(-4)}`,
+        customer_name,
+        customer_email,
+        rating: Number(rating || 5),
+        type: type || 'Review',
+        message,
+        product_id,
+        product_name,
+        title: title || 'Customer Review',
+        verified_purchase: verified_purchase !== undefined ? verified_purchase : true,
+        helpful_count: 0,
+        status: 'Published',
+        created_at: new Date().toISOString()
+      });
+
+      await newFbd.save();
+
+      if (product_id) {
+        const prodReviews = await FeedbackModel.find({ product_id });
+        const totalRating = prodReviews.reduce((acc, curr) => acc + curr.rating, 0);
+        await ProductModel.updateOne(
+          { product_id },
+          {
+            reviews_count: prodReviews.length,
+            rating: Number((totalRating / prodReviews.length).toFixed(1))
+          }
+        );
+      }
+
+      res.status(201).json(newFbd);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/feedback/:id/helpful', async (req, res) => {
+    try {
+      const fbd = await FeedbackModel.findOneAndUpdate(
+        { feedback_id: req.params.id },
+        { $inc: { helpful_count: 1 } },
+        { returnDocument: 'after' }
+      );
+      if (!fbd) {
+        return res.status(404).json({ error: 'Feedback not found' });
+      }
+      res.json(fbd);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/feedback/:id/reply', async (req, res) => {
+    try {
+      const fbd = await FeedbackModel.findOneAndUpdate(
+        { feedback_id: req.params.id },
+        { admin_reply: req.body.reply },
+        { returnDocument: 'after' }
+      );
+      if (!fbd) {
+        return res.status(404).json({ error: 'Feedback not found' });
+      }
+      res.json(fbd);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/customers', async (req, res) => {
+    try {
+      const { email } = req.query;
+      const filter: any = {};
+      if (email) {
+        filter.email = new RegExp(`^${String(email).trim()}$`, 'i');
+      }
+      const customers = await CustomerModel.find(filter).sort({ createdAt: -1 });
+      res.json(customers);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/email-logs', async (req, res) => {
+    try {
+      const logs = await EmailLogModel.find().sort({ createdAt: -1 });
+      res.json(logs);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/reports/pnl', async (req, res) => {
+    try {
+      const admin_id = (req.query.admin_id as AdminId) || 'admin1';
+
+      const adminOrders = await OrderModel.find({ admin_id, status: { $ne: 'Cancelled' } });
+      const adminBills = await BillModel.find({ admin_id });
+      const adminExpenses = await ExpenseModel.find({ admin_id });
+      const allProducts = await ProductModel.find();
+
+      const sales_revenue = adminOrders.reduce((acc, o) => acc + o.total_amount, 0) +
+        adminBills.filter(b => b.bill_type === 'Manual').reduce((acc, b) => acc + b.grand_total, 0);
+
+      const purchaseCost = adminExpenses
+        .filter((expense) => expense.category === 'Product Purchase')
+        .reduce((acc, expense) => acc + expense.amount, 0);
+      const total_expenses = adminExpenses.reduce((acc, e) => acc + e.amount, 0);
+      const financeMetrics = calculateFinanceMetrics({
+        revenue: sales_revenue,
+        purchaseCost,
+        expenses: total_expenses,
+        taxCollected: adminBills.reduce((acc, bill) => acc + Number(bill.tax_gst || 0), 0),
+        discountGiven: adminBills.reduce((acc, bill) => acc + Number(bill.discount_total || 0), 0),
+        shippingCharges: 0,
+        refundAmount: 0
+      });
+      const net_profit = financeMetrics.netProfit;
+
+      const dailyMap: Record<string, { sales: number; expenses: number }> = {};
+
+      adminOrders.forEach((o) => {
+        const dateKey = new Date(o.created_at).toISOString().split('T')[0];
+        if (!dailyMap[dateKey]) dailyMap[dateKey] = { sales: 0, expenses: 0 };
+        dailyMap[dateKey].sales += o.total_amount;
+      });
+
+      adminBills.filter(b => b.bill_type === 'Manual').forEach((b) => {
+        const dateKey = new Date(b.created_at).toISOString().split('T')[0];
+        if (!dailyMap[dateKey]) dailyMap[dateKey] = { sales: 0, expenses: 0 };
+        dailyMap[dateKey].sales += b.grand_total;
+      });
+
+      adminExpenses.forEach((e) => {
+        const dateKey = e.date || new Date().toISOString().split('T')[0];
+        if (!dailyMap[dateKey]) dailyMap[dateKey] = { sales: 0, expenses: 0 };
+        dailyMap[dateKey].expenses += e.amount;
+      });
+
+      const daily_sales = Object.keys(dailyMap).sort().map((dateKey) => {
+        const sales = Number(dailyMap[dateKey].sales.toFixed(2));
+        const expenses = Number(dailyMap[dateKey].expenses.toFixed(2));
+        return {
+          date: dateKey,
+          sales,
+          expenses,
+          profit: Number((sales - expenses).toFixed(2))
+        };
+      });
+
+      const categoryMap: Record<string, number> = {};
+      adminOrders.forEach((o) => {
+        o.items.forEach((it) => {
+          const prod = allProducts.find((p) => p.product_id === it.product_id);
+          const cat = prod ? prod.category : 'General';
+          categoryMap[cat] = (categoryMap[cat] || 0) + it.price * it.quantity;
+        });
+      });
+
+      const category_sales = Object.keys(categoryMap).map((cat) => ({
+        category: cat,
+        amount: Number(categoryMap[cat].toFixed(2))
+      }));
+
+      const expMap: Record<string, number> = {};
+      adminExpenses.forEach((e) => {
+        expMap[e.category] = (expMap[e.category] || 0) + e.amount;
+      });
+
+      const expense_breakdown = Object.keys(expMap).map((cat) => ({
+        category: cat as any,
+        amount: Number(expMap[cat].toFixed(2))
+      }));
+
+      res.json({
+        admin_id,
+        period: 'All Time',
+        sales_revenue: Number(sales_revenue.toFixed(2)),
+        expenses: Number(total_expenses.toFixed(2)),
+        net_profit,
+        total_orders: adminOrders.length + adminBills.filter(b => b.bill_type === 'Manual').length,
+        daily_sales,
+        category_sales,
+        expense_breakdown,
+        finance_metrics: financeMetrics
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  if (process.env.NODE_ENV !== 'production') {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa'
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
+
+  if (shouldListen) {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Made Pure & Natural Foods Server listening on http://localhost:${PORT}`);
+    });
+  }
+}
+
+let initializedApp: express.Express | null = null;
+let appInitPromise: Promise<express.Express> | null = null;
+
+async function initApp() {
+  if (initializedApp) return initializedApp;
+  if (!appInitPromise) {
+    const app = express();
+    appInitPromise = startServer(app, false).then(() => {
+      initializedApp = app;
+      return app;
+    });
+  }
+  return appInitPromise;
+}
+
+export default async function handler(req: express.Request, res: express.Response) {
+  const app = await initApp();
+  app(req, res);
+}
+
+if (process.env.VERCEL !== '1') {
+  startServer(express());
+}
