@@ -73,7 +73,6 @@ async function startServer(app: express.Express, shouldListen = true) {
   } catch (err) {
     console.error('Failed to connect to MongoDB:', err);
     lastDbError = (err as any)?.message || String(err);
-    if (!process.env.VERCEL) process.exit(1);
   }
 
   app.use(express.json({ limit: '10mb' }));
