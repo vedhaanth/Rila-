@@ -3,7 +3,6 @@ import express from 'express';
 import path from 'path';
 import mongoose from 'mongoose';
 import { createServer as createViteServer } from 'vite';
-import { fileURLToPath } from 'url';
 import { AdminId, OrderStatus, EmailLog } from '../src/types';
 import { calculateFinanceMetrics } from '../src/utils/finance.js';
 import { connectToDatabase } from '../src/db/connect';
@@ -1066,7 +1065,6 @@ export default async function handler(req: express.Request, res: express.Respons
   }
 }
 
-const __filename = fileURLToPath(import.meta.url);
-if (process.argv[1] === __filename) {
+if (process.env.VERCEL !== '1') {
   startServer(express());
 }
