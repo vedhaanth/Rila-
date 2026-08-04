@@ -51,6 +51,16 @@ export const LoginModal: React.FC = () => {
 
     const adminTarget = resolveAdminLogin(email, password);
     if (adminTarget) {
+      try {
+        const admin = await api.loginAdmin(email.trim(), password.trim());
+        if (admin?.admin_id) {
+          loginAsAdmin(admin.admin_id as any);
+          return;
+        }
+      } catch (err: any) {
+        // Fall back to the quick-login mapping for legacy/admin demo credentials.
+      }
+
       if (adminTarget === 'order_manager') {
         loginAsOrderManager();
       } else {

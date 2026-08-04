@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import cors from 'cors';
 import path from 'path';
 import mongoose from 'mongoose';
 import { createServer as createViteServer } from 'vite';
@@ -74,6 +75,7 @@ async function startServer(app: express.Express, shouldListen = true) {
     lastDbError = (err as any)?.message || String(err);
   }
 
+  app.use(cors({ origin: process.env.APP_URL || '*' }));
   app.use(express.json({ limit: '10mb' }));
 
   async function triggerEmail(

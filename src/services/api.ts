@@ -12,10 +12,38 @@ import {
   UserProfile
 } from '../types';
 
-const API_BASE = '/api';
+const API_BASE = (() => {
+  // Priority order:
+  // 1. Vite compile-time env var `VITE_API_BASE`
+  // 2. Runtime global `window.__VITE_API_BASE` (settable from index.html)
+  // 3. Same-origin `/api` on the current host
+  try {
+    const vite = (import.meta.env && (import.meta.env.VITE_API_BASE as string)) || '';
+    if (vite) return vite;
+  } catch (e) {
+    // ignore
+  }
+  const runtime = (typeof window !== 'undefined' && (window as any).__VITE_API_BASE) || '';
+  if (runtime) return runtime;
+  if (typeof window !== 'undefined') return `${window.location.origin}/api`;
+  return '/api';
+})();
 
 export const api = {
   // ADMINS
+  async loginAdmin(email: string, password: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: 'Failed to login admin' }));
+      throw new Error(error.error || 'Failed to login admin');
+    }
+    return await res.json();
+  },
+
   async getAdmins(): Promise<any[]> {
     try {
       const res = await fetch(`${API_BASE}/admins`);
