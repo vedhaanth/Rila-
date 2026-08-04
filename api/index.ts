@@ -1,8 +1,16 @@
+import path from 'path';
+import { pathToFileURL } from 'url';
 import type { IncomingMessage, ServerResponse } from 'http';
 
 async function loadHandler() {
-  const serverModule = await import('../dist/server.cjs');
-  return serverModule?.default || serverModule;
+  const rootDistPath = path.resolve(process.cwd(), 'dist', 'server.cjs');
+  try {
+    const serverModule = await import(pathToFileURL(rootDistPath).href);
+    return serverModule?.default || serverModule;
+  } catch (primaryError) {
+    const serverModule = await import('../dist/server.cjs');
+    return serverModule?.default || serverModule;
+  }
 }
 
 export default async function (req: IncomingMessage, res: ServerResponse) {
