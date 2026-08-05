@@ -1,4 +1,4 @@
-import handler from '../dist/backend/server.js';
+import handler from '../dist/server.cjs';
 import type { IncomingMessage, ServerResponse } from 'http';
 
 export default async function (req: IncomingMessage, res: ServerResponse) {
