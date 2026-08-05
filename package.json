@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx backend/run-server.ts",
-    "build": "vite build && esbuild backend/run-server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "npm ci --include=dev && vite build && esbuild backend/run-server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "vercel-build": "npm run build",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
