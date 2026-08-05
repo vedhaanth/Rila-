@@ -1,5 +1,7 @@
-import handler from '../dist/server.cjs';
+import * as server from '../backend/server.ts';
 import type { IncomingMessage, ServerResponse } from 'http';
+
+const handler = (server as any).default ?? (server as any);
 
 export default async function (req: IncomingMessage, res: ServerResponse) {
   try {
