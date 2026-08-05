@@ -57,7 +57,7 @@ async function removeAdmin1SampleData() {
   await BillModel.deleteMany({ admin_id: 'admin1' });
 }
 
-async function startServer(app: express.Express, shouldListen = true) {
+export async function startServer(app: express.Express, shouldListen = true) {
   const PORT = Number(process.env.PORT || 3000);
   let lastDbError: string | null = null;
 
@@ -1067,6 +1067,3 @@ export default async function handler(req: express.Request, res: express.Respons
   }
 }
 
-if (process.env.VERCEL !== '1') {
-  startServer(express());
-}
