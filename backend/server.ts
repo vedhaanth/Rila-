@@ -1026,9 +1026,25 @@ export async function startServer(app: express.Express, shouldListen = true) {
   }
 
   if (shouldListen) {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Made Pure & Natural Foods Server listening on http://localhost:${PORT}`);
-    });
+    const listenOnPort = (port: number) => {
+      const server = app.listen(port, '0.0.0.0', () => {
+        process.env.PORT = String(port);
+        console.log(`Made Pure & Natural Foods Server listening on http://localhost:${port}`);
+      });
+
+      server.on('error', (error: NodeJS.ErrnoException) => {
+        if (error.code === 'EADDRINUSE' && port < 65535) {
+          console.warn(`Port ${port} is busy, trying ${port + 1}...`);
+          server.close();
+          listenOnPort(port + 1);
+          return;
+        }
+        console.error('Server listen failed:', error);
+        process.exit(1);
+      });
+    };
+
+    listenOnPort(PORT);
   }
 }
 

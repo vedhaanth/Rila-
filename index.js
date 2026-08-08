@@ -1,12 +1,14 @@
 import { existsSync } from 'fs';
 import path from 'path';
+import { pathToFileURL } from 'url';
 
-const serverPath = path.resolve('./dist/server.cjs');
+const candidates = [path.resolve('./server.cjs'), path.resolve('./dist/server.cjs')];
+const serverPath = candidates.find((candidate) => existsSync(candidate)) || path.resolve('./server.cjs');
 
 if (!existsSync(serverPath)) {
   throw new Error(
-    'Missing dist/server.cjs. Run `npm run build` before starting, or configure Render to run `npm run build` as the build command.'
+    'Missing server entrypoint. Run `npm run build` before starting, or let the start script build it automatically.'
   );
 }
 
-await import('./dist/server.cjs');
+await import(pathToFileURL(serverPath).href);
