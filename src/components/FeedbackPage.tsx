@@ -48,20 +48,20 @@ export const FeedbackPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 bg-stone-50/50">
-      <div className="text-center max-w-2xl mx-auto space-y-2">
-        <span className="text-amber-700 font-extrabold text-xs uppercase tracking-widest block">Customer Reviews & Feedback</span>
-        <h1 className="font-serif-display text-4xl font-extrabold text-slate-900 tracking-tight">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-10 bg-transparent">
+      <div className="section-shell rounded-[28px] bg-white/80 px-6 sm:px-10 py-8 text-center max-w-3xl mx-auto">
+        <span className="text-amber-700 font-extrabold text-xs uppercase tracking-[0.3em] block">Customer Reviews & Feedback</span>
+        <h1 className="font-serif-display text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-3">
           Community Voice & Reviews
         </h1>
-        <p className="text-xs text-slate-600 font-medium">
+        <p className="text-sm text-slate-600 font-medium mt-2">
           Share your organic food, gift hamper, or store delivery experience with our team.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Form Column */}
-        <div className="p-6 bg-white rounded-3xl border border-amber-200/80 shadow-md space-y-4">
+        <div className="p-6 bg-white rounded-[24px] border border-amber-200/80 shadow-sm space-y-4">
           <h3 className="font-serif-display font-extrabold text-slate-900 text-xl">Share Your Experience</h3>
 
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
@@ -148,7 +148,7 @@ export const FeedbackPage: React.FC = () => {
             {feedbacks.map((fbd) => (
               <div
                 key={fbd.feedback_id}
-                className="p-6 bg-white rounded-3xl border border-amber-200/80 shadow-md space-y-2.5 text-xs"
+                className="p-6 bg-white rounded-[22px] border border-amber-200/80 shadow-sm space-y-2.5 text-xs"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">

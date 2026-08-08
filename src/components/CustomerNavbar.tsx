@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { Product } from '../types';
 import { formatINR } from '../utils/currency';
 import {
   ShoppingBag,
@@ -13,15 +14,19 @@ import {
   X,
   MapPin,
   Clock,
-  Heart
+  Heart,
+  Moon,
+  Sun
 } from 'lucide-react';
 
 import rilaLogo from '../assets/images/rila_logo.jpg';
 
 export const CustomerNavbar: React.FC<{
+  products: import('../types').Product[];
   searchQuery: string;
   setSearchQuery: (q: string) => void;
-}> = ({ searchQuery, setSearchQuery }) => {
+  setSelectedCategory: (cat: string) => void;
+}> = ({ products, searchQuery, setSearchQuery, setSelectedCategory }) => {
   const {
     activeCustomerTab,
     setActiveCustomerTab,
@@ -32,13 +37,30 @@ export const CustomerNavbar: React.FC<{
     currentUser,
     setIsLoginModalOpen,
     logout,
-    setIsEmailLogModalOpen
+    setIsEmailLogModalOpen,
+    wishlist,
+    theme,
+    toggleTheme
   } = useApp();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  const searchResults = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+    return products
+      .filter((product) => {
+        const searchable = `${product.product_name} ${product.category} ${product.description}`.toLowerCase();
+        return searchable.includes(query);
+      })
+      .slice(0, 5);
+  }, [products, searchQuery]);
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 8);
@@ -51,6 +73,9 @@ export const CustomerNavbar: React.FC<{
     const handleClick = (e: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setIsProfileMenuOpen(false);
+      }
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setIsSearchActive(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
@@ -66,8 +91,17 @@ export const CustomerNavbar: React.FC<{
     ...(currentUser ? [{ id: 'orders', label: 'My Orders' }] : [])
   ];
 
+  const categories = [
+    { name: 'Pure Ghee Sweets', label: 'Ghee Sweets' },
+    { name: 'Kaju & Dry Fruit Mithai', label: 'Dry Fruit Mithai' },
+    { name: 'Bengali Mithai', label: 'Bengali Classics' },
+    { name: 'Festive Gifting Boxes', label: 'Gift Hampers' }
+  ];
+
+  const wishlistCount = wishlist.length;
+
   return (
-    <header className={`sticky top-0 z-40 bg-white text-slate-900 font-sans transition-shadow duration-200 ${isScrolled ? 'shadow-md' : 'shadow-sm border-b border-stone-200/80'}`}>
+    <header className={`sticky top-0 z-40 font-sans transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-xl shadow-[0_12px_35px_-20px_rgba(15,23,42,0.35)] border-b border-stone-200/80' : 'bg-transparent'} ${theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>
 
       {/* Utility top bar */}
       <div className="bg-stone-950 text-stone-300 py-1.5 px-4">
@@ -134,31 +168,106 @@ export const CustomerNavbar: React.FC<{
               </button>
             );
           })}
+
+          <div className="relative">
+            <button
+              onClick={() => setIsCategoryMenuOpen((open) => !open)}
+              className="relative px-3.5 py-2 text-sm font-medium rounded-lg transition-colors text-stone-600 hover:text-stone-900 hover:bg-stone-50 inline-flex items-center gap-1"
+            >
+              Categories
+              <ChevronDown className={`w-3.5 h-3.5 text-stone-400 transition-transform ${isCategoryMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isCategoryMenuOpen && (
+              <div className="absolute top-full left-0 mt-2 w-56 rounded-3xl bg-white border border-stone-200 shadow-xl overflow-hidden z-50">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.name}
+                    onClick={() => {
+                      setSelectedCategory(cat.name);
+                      setActiveCustomerTab('products');
+                      setIsCategoryMenuOpen(false);
+                    }}
+                    className="w-full px-4 py-3 text-left text-sm text-stone-700 hover:bg-stone-50 transition"
+                  >
+                    <span className="font-semibold">{cat.label}</span>
+                    <span className="block text-[11px] text-stone-400 mt-1">{cat.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              if (currentUser) {
+                setActiveCustomerTab('orders');
+              } else {
+                setIsLoginModalOpen(true);
+              }
+            }}
+            className="relative px-3.5 py-2 text-sm font-medium rounded-lg transition-colors text-stone-600 hover:text-stone-900 hover:bg-stone-50 inline-flex items-center gap-2"
+          >
+            <Heart className="w-4 h-4 text-rose-500" />
+            <span>Wishlist</span>
+            {wishlistCount > 0 && (
+              <span className="rounded-full px-2 py-0.5 text-[10px] bg-rose-100 text-rose-600 font-semibold">
+                {wishlistCount}
+              </span>
+            )}
+          </button>
         </nav>
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 shrink-0">
 
           {/* Search */}
-          <div className="hidden md:flex items-center relative">
+          <div ref={searchRef} className="hidden md:flex items-center relative">
             <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder='Search products...'
+              placeholder="Search products..."
               value={searchQuery}
+              onFocus={() => setIsSearchActive(true)}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 if (activeCustomerTab !== 'products') setActiveCustomerTab('products');
               }}
-              className="pl-9 pr-3 py-2 text-sm rounded-xl bg-stone-50 border border-stone-200 text-stone-800 placeholder-stone-400 focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-400/20 w-52 transition"
+              className="pl-9 pr-3 py-2.5 text-sm rounded-xl bg-white/95 border border-stone-200 text-stone-800 placeholder-stone-400 focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-400/20 w-64 shadow-sm transition-all duration-300"
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery('')}
+                onClick={() => { setSearchQuery(''); setIsSearchActive(false); }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
+            )}
+
+            {isSearchActive && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 rounded-3xl bg-white/95 border border-stone-200 shadow-xl backdrop-blur-xl overflow-hidden z-50 animate-scale-up">
+                {searchResults.map((product) => (
+                  <button
+                    key={product.product_id}
+                    onClick={() => {
+                      setSelectedCategory(product.category);
+                      setActiveCustomerTab('products');
+                      setIsSearchActive(false);
+                    }}
+                    className="flex items-center gap-3 w-full px-4 py-3 hover:bg-stone-50 transition"
+                  >
+                    <img
+                      src={product.image}
+                      alt={product.product_name}
+                      className="w-12 h-12 rounded-2xl object-cover border border-stone-200"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-stone-900 truncate">{product.product_name}</p>
+                      <p className="text-[11px] text-stone-500">{product.category}</p>
+                    </div>
+                    <span className="ml-auto text-sm font-semibold text-stone-900">{formatINR(product.price)}</span>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
@@ -214,8 +323,15 @@ export const CustomerNavbar: React.FC<{
 
           {/* Cart Button */}
           <button
+            onClick={toggleTheme}
+            className="hidden xl:inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-white/90 text-stone-900 border border-stone-200 shadow-sm hover:bg-amber-50 transition"
+            title="Toggle Theme"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+          <button
             onClick={() => setIsCartOpen(true)}
-            className="relative flex items-center gap-2 px-3 py-2 bg-stone-950 hover:bg-stone-800 text-white rounded-xl transition group"
+            className="relative flex items-center gap-2 px-3 py-2.5 bg-stone-950 hover:bg-stone-800 text-white rounded-xl transition group shadow-[0_8px_24px_-12px_rgba(0,0,0,0.45)]"
             title="View Cart"
           >
             <ShoppingBag className="w-4 h-4 text-amber-400" />
@@ -246,7 +362,7 @@ export const CustomerNavbar: React.FC<{
             className="fixed inset-0 bg-slate-950/40 z-30 lg:hidden"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-          <div className="absolute top-full left-0 right-0 bg-white border-t border-stone-200 shadow-xl z-40 lg:hidden animate-fade-in">
+          <div className="absolute top-full left-0 right-0 bg-white/95 border-t border-stone-200 shadow-[0_18px_50px_-20px_rgba(15,23,42,0.35)] z-40 lg:hidden animate-fade-in backdrop-blur-xl">
             <div className="p-4 space-y-1">
               {/* Mobile search */}
               <div className="relative mb-3">
@@ -274,6 +390,38 @@ export const CustomerNavbar: React.FC<{
                   {link.label}
                 </button>
               ))}
+              <div className="pt-3 border-t border-stone-200">
+                <p className="px-4 text-xs uppercase tracking-[0.24em] text-stone-500 mb-2">Browse Categories</p>
+                <div className="grid grid-cols-2 gap-2 px-2">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.name}
+                      onClick={() => {
+                        setSelectedCategory(cat.name);
+                        setActiveCustomerTab('products');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-2xl bg-stone-50 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition"
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    if (currentUser) {
+                      setActiveCustomerTab('orders');
+                    } else {
+                      setIsLoginModalOpen(true);
+                    }
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-stone-950 text-white py-3 text-sm font-semibold hover:bg-stone-800 transition"
+                >
+                  <Heart className="w-4 h-4 text-rose-300" />
+                  View Wishlist {wishlistCount > 0 ? `(${wishlistCount})` : ''}
+                </button>
+              </div>
             </div>
           </div>
         </>

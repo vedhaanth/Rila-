@@ -36,6 +36,8 @@ interface AppContextType {
   loginAsCustomer: (customer: any) => void;
   loginAsOrderManager: (employeeUser: any) => void;
   logout: () => void;
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
 
   // Cart
   cart: CartItem[];
@@ -99,6 +101,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const savedTheme = localStorage.getItem('rila_theme');
+      return savedTheme === 'dark' ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
+  });
+
   // Cart
   const [cart, setCart] = useState<CartItem[]>(() => {
     return [];
@@ -146,6 +157,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.error('Failed to persist current user', e);
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('rila_theme', theme);
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    } catch (e) {
+      console.error('Failed to persist theme', e);
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   const toggleWishlist = (productId: string) => {
     if (!currentUser) {
@@ -354,7 +382,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetchEmailLogs,
         wishlist,
         toggleWishlist,
-        isInWishlist
+        isInWishlist,
+        theme,
+        toggleTheme
       }}
     >
       {children}

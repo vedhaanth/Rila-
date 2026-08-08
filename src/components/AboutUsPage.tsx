@@ -5,23 +5,23 @@ import { Building2, ShieldCheck, Utensils, Layers, Sparkles, CheckCircle2, Heart
 export const AboutUsPage: React.FC = () => {
   const { adminProfiles } = useApp();
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 bg-stone-50/50">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-10 bg-transparent">
       {/* Header */}
-      <div className="text-center max-w-3xl mx-auto space-y-4">
-        <span className="px-3.5 py-1 rounded-full bg-amber-500/20 text-amber-800 font-extrabold text-xs uppercase tracking-widest inline-block border border-amber-300 shadow-sm">
+      <div className="section-shell rounded-[28px] bg-white/80 px-6 sm:px-10 py-8 sm:py-10 text-center max-w-4xl mx-auto">
+        <span className="px-3.5 py-1 rounded-full bg-amber-500/20 text-amber-800 font-extrabold text-xs uppercase tracking-[0.3em] inline-block border border-amber-300 shadow-sm">
           About RILA Store
         </span>
-        <h1 className="font-serif-display text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="font-serif-display text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight mt-4">
           Your Trusted Destination for Quality &amp; Healthy Choices
         </h1>
-        <p className="text-sm text-slate-600 leading-relaxed font-medium max-w-xl mx-auto">
+        <p className="text-sm text-slate-600 leading-relaxed font-medium max-w-2xl mx-auto mt-3">
           RILA Store is committed to bringing you the finest quality products across a wide range of categories. We believe in transparency, freshness, and delivering an exceptional shopping experience every time.
         </p>
       </div>
 
       {/* Mission & Vision Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="p-8 bg-slate-950 text-amber-50 rounded-2xl space-y-4 border border-amber-500/30 shadow-xl">
+        <div className="p-8 bg-slate-950 text-amber-50 rounded-[24px] space-y-4 border border-amber-500/30 shadow-xl">
           <div className="p-3 bg-amber-500/20 text-amber-400 rounded-2xl w-fit border border-amber-400/30">
             <Utensils className="w-6 h-6 text-amber-400" />
           </div>
@@ -31,7 +31,7 @@ export const AboutUsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="p-8 bg-gradient-to-br from-amber-500 via-amber-400 to-yellow-500 text-slate-950 rounded-2xl space-y-4 shadow-xl">
+        <div className="p-8 bg-gradient-to-br from-amber-500 via-amber-400 to-yellow-500 text-slate-950 rounded-[24px] space-y-4 shadow-xl">
           <div className="p-3 bg-slate-950/20 text-slate-950 rounded-2xl w-fit">
             <Sparkles className="w-6 h-6 text-slate-950" />
           </div>

@@ -43,19 +43,24 @@ export function App() {
     currentPortal,
     activeCustomerTab,
     activeAdminTab,
-    refreshDataFlag
+    refreshDataFlag,
+    theme
   } = useApp();
 
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [isProductsLoading, setIsProductsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
   const fetchAllProducts = async () => {
+    setIsProductsLoading(true);
     try {
       const prods = await api.getProducts();
       setAllProducts(prods);
     } catch (err) {
       console.error('Failed to fetch products:', err);
+    } finally {
+      setIsProductsLoading(false);
     }
   };
 
@@ -64,12 +69,12 @@ export function App() {
   }, [refreshDataFlag]);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div className={`min-h-screen flex flex-col font-sans selection:bg-amber-600 selection:text-white ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.12),_transparent_30%),linear-gradient(180deg,_#fcfaf7_0%,_#f7efe4_100%)] text-slate-900'}`}>
       {/* Portal Routing */}
       {currentPortal === 'customer' ? (
         <div className="flex-1 flex flex-col justify-between">
           <div>
-            <CustomerNavbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+            <CustomerNavbar products={allProducts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setSelectedCategory={setSelectedCategory} />
 
             <main className="min-h-[70vh]">
               {activeCustomerTab === 'home' && (
@@ -79,6 +84,7 @@ export function App() {
               {activeCustomerTab === 'products' && (
                 <ProductsPage
                   products={allProducts}
+                  isLoading={isProductsLoading}
                   selectedCategory={selectedCategory}
                   setSelectedCategory={setSelectedCategory}
                   searchQuery={searchQuery}

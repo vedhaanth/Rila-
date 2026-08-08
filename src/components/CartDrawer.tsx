@@ -27,7 +27,7 @@ export const CartDrawer: React.FC = () => {
       {items.map((item) => (
         <div
           key={item.product?.product_id}
-          className="flex gap-3 p-3 bg-slate-900/60 rounded-2xl border border-white/5"
+          className="flex gap-3 p-3 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl border border-white/10 shadow-[0_10px_30px_-16px_rgba(0,0,0,0.7)]"
         >
           <img
             src={item.product?.image}
@@ -80,10 +80,10 @@ export const CartDrawer: React.FC = () => {
       {/* Backdrop click to close */}
       <div className="flex-1" onClick={() => setIsCartOpen(false)} />
 
-      <div className="w-full max-w-md bg-slate-950 text-amber-50 h-full shadow-2xl flex flex-col border-l border-amber-500/20 animate-slide-left">
+      <div className="w-full max-w-md bg-[linear-gradient(145deg,rgba(15,23,42,0.98),rgba(30,41,59,0.95))] text-amber-50 h-full shadow-[0_20px_80px_-20px_rgba(0,0,0,0.75)] flex flex-col border-l border-amber-500/20 animate-slide-left">
 
         {/* Header */}
-        <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between bg-slate-900/80">
+        <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between bg-[linear-gradient(135deg,rgba(15,23,42,0.95),rgba(41,37,36,0.95))]">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-400 to-amber-600 flex items-center justify-center shadow">
               <ShoppingBag className="w-4 h-4 text-slate-950" />
@@ -157,7 +157,7 @@ export const CartDrawer: React.FC = () => {
 
             <button
               onClick={handleProceedToCheckout}
-              className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-2xl text-sm shadow-lg transition flex items-center justify-center gap-2 border border-yellow-300/50"
+              className="w-full py-3.5 bg-gradient-to-r from-amber-500 via-orange-400 to-amber-600 hover:from-amber-400 hover:via-orange-300 hover:to-amber-500 text-slate-950 font-black rounded-2xl text-sm shadow-[0_16px_35px_-16px_rgba(245,158,11,0.8)] transition flex items-center justify-center gap-2 border border-yellow-300/50"
             >
               Proceed to Checkout
               <ArrowRight className="w-4 h-4" />

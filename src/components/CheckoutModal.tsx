@@ -102,12 +102,12 @@ export const CheckoutModal: React.FC = () => {
 
   return (
     <div id="checkout-modal-overlay" className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-amber-200/80 flex flex-col my-8 animate-scale-up" style={{ maxHeight: '90vh' }}>
+      <div className="bg-[linear-gradient(145deg,#fffdf9_0%,#fff7ed_100%)] w-full max-w-2xl rounded-3xl shadow-[0_24px_90px_-24px_rgba(120,53,15,0.5)] border border-amber-200/80 flex flex-col my-8 animate-scale-up" style={{ maxHeight: '90vh' }}>
 
         {!placedOrderResult ? (
           <div className="flex flex-col min-h-0">
             {/* Sticky Modal Header */}
-            <div className="flex-shrink-0 p-6 bg-slate-950 text-amber-50 border-b border-amber-500/30 rounded-t-3xl">
+            <div className="flex-shrink-0 p-6 bg-[linear-gradient(135deg,#111827_0%,#1f2937_50%,#432818_100%)] text-amber-50 border-b border-amber-500/30 rounded-t-3xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <img src={rilaLogo} alt="RILA Logo" className="h-8 w-auto object-contain rounded-lg border border-slate-800 bg-white p-0.5" />
@@ -128,7 +128,7 @@ export const CheckoutModal: React.FC = () => {
 
             <form onSubmit={handlePlaceOrder} className="p-6 space-y-6 overflow-y-auto flex-1">
               {/* Multi Admin Split Info Box */}
-              <div className="p-4 bg-amber-50 rounded-2xl border border-amber-300 text-xs text-slate-900 space-y-1 shadow-sm">
+              <div className="p-4 bg-gradient-to-br from-amber-50 to-orange-100 rounded-2xl border border-amber-300 text-xs text-slate-900 space-y-1 shadow-[0_10px_25px_-16px_rgba(120,53,15,0.35)]">
                 <span className="font-extrabold text-amber-800 block">🏬 Dual Fulfillment Routing:</span>
                 {admin1Items.length > 0 && (
                   <p className="font-medium">• {admin1Items.length} item(s) routed to <b>{adminProfiles.admin1?.business_name || 'Admin 1'}</b></p>
@@ -154,7 +154,7 @@ export const CheckoutModal: React.FC = () => {
                       required
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-amber-300 bg-amber-50/30 text-slate-900 font-semibold focus:ring-2 focus:ring-amber-500"
+                      className="w-full px-4 py-2.5 rounded-2xl border border-amber-300 bg-white/80 text-slate-900 font-semibold shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                     />
                   </div>
 
@@ -165,7 +165,7 @@ export const CheckoutModal: React.FC = () => {
                       required
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-amber-300 bg-amber-50/30 text-slate-900 font-semibold focus:ring-2 focus:ring-amber-500"
+                      className="w-full px-4 py-2.5 rounded-2xl border border-amber-300 bg-white/80 text-slate-900 font-semibold shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                     />
                   </div>
 
@@ -176,7 +176,7 @@ export const CheckoutModal: React.FC = () => {
                       required
                       value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-amber-300 bg-amber-50/30 text-slate-900 font-semibold focus:ring-2 focus:ring-amber-500"
+                      className="w-full px-4 py-2.5 rounded-2xl border border-amber-300 bg-white/80 text-slate-900 font-semibold shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                     />
                   </div>
 
@@ -187,7 +187,7 @@ export const CheckoutModal: React.FC = () => {
                       rows={2}
                       value={shippingAddress}
                       onChange={(e) => setShippingAddress(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-2xl border border-amber-300 bg-amber-50/30 text-slate-900 font-semibold focus:ring-2 focus:ring-amber-500"
+                      className="w-full px-4 py-2.5 rounded-2xl border border-amber-300 bg-white/80 text-slate-900 font-semibold shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                     />
                   </div>
                 </div>
@@ -202,7 +202,7 @@ export const CheckoutModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('UPI')}
-                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'UPI' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-sm' : 'border-amber-200 text-slate-800 hover:bg-amber-50/50'}`}
+                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'UPI' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-[0_10px_25px_-16px_rgba(245,158,11,0.7)]' : 'border-amber-200 text-slate-800 hover:bg-amber-50/60'}`}
                   >
                     <QrCode className="w-4 h-4 text-amber-600" />
                     Instant UPI / QR Code
@@ -211,7 +211,7 @@ export const CheckoutModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('Credit Card')}
-                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'Credit Card' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-sm' : 'border-amber-200 text-slate-800 hover:bg-amber-50/50'}`}
+                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'Credit Card' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-[0_10px_25px_-16px_rgba(245,158,11,0.7)]' : 'border-amber-200 text-slate-800 hover:bg-amber-50/60'}`}
                   >
                     <CreditCard className="w-4 h-4 text-amber-600" />
                     Credit / Debit Card
@@ -220,7 +220,7 @@ export const CheckoutModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('Net Banking')}
-                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'Net Banking' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-sm' : 'border-amber-200 text-slate-800 hover:bg-amber-50/50'}`}
+                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'Net Banking' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-[0_10px_25px_-16px_rgba(245,158,11,0.7)]' : 'border-amber-200 text-slate-800 hover:bg-amber-50/60'}`}
                   >
                     <Building2 className="w-4 h-4 text-amber-600" />
                     Net Banking
@@ -229,7 +229,7 @@ export const CheckoutModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('Debit Card')}
-                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'Debit Card' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-sm' : 'border-amber-200 text-slate-800 hover:bg-amber-50/50'}`}
+                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'Debit Card' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-[0_10px_25px_-16px_rgba(245,158,11,0.7)]' : 'border-amber-200 text-slate-800 hover:bg-amber-50/60'}`}
                   >
                     <Lock className="w-4 h-4 text-amber-600" />
                     Razorpay Gateway
@@ -238,7 +238,7 @@ export const CheckoutModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('Cash on Delivery')}
-                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'Cash on Delivery' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-sm' : 'border-amber-200 text-slate-800 hover:bg-amber-50/50'}`}
+                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'Cash on Delivery' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-[0_10px_25px_-16px_rgba(245,158,11,0.7)]' : 'border-amber-200 text-slate-800 hover:bg-amber-50/60'}`}
                   >
                     <Receipt className="w-4 h-4 text-amber-600" />
                     Cash on Delivery
@@ -284,14 +284,14 @@ export const CheckoutModal: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-shrink-0 px-5 py-4 border-2 border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 text-xs font-bold rounded-2xl transition flex items-center gap-2"
+                  className="flex-shrink-0 px-5 py-4 border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 text-xs font-bold rounded-2xl transition flex items-center gap-2 bg-white/80 shadow-sm"
                 >
                   <X className="w-4 h-4" /> Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || cart.length === 0}
-                  className="flex-1 py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:bg-slate-300 text-slate-950 text-xs font-black rounded-2xl shadow-xl transition flex items-center justify-center gap-2 border border-yellow-300"
+                  className="flex-1 py-4 bg-gradient-to-r from-amber-500 via-orange-400 to-amber-600 hover:from-amber-600 hover:via-orange-500 hover:to-amber-700 disabled:bg-slate-300 text-slate-950 text-xs font-black rounded-2xl shadow-[0_16px_35px_-16px_rgba(245,158,11,0.8)] transition flex items-center justify-center gap-2 border border-yellow-300"
                 >
                   {isSubmitting ? (
                     <span>Processing Order...</span>

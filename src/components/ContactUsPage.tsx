@@ -17,13 +17,13 @@ export const ContactUsPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 bg-stone-50/50">
-      <div className="text-center max-w-2xl mx-auto space-y-2">
-        <span className="text-amber-700 font-extrabold text-xs uppercase tracking-widest block">We'd Love To Hear From You</span>
-        <h1 className="font-serif-display text-4xl font-extrabold text-slate-900 tracking-tight">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-10 bg-transparent">
+      <div className="section-shell rounded-[28px] bg-white/80 px-6 sm:px-10 py-8 text-center max-w-3xl mx-auto">
+        <span className="text-amber-700 font-extrabold text-xs uppercase tracking-[0.3em] block">We'd Love To Hear From You</span>
+        <h1 className="font-serif-display text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-3">
           Contact RILA Support
         </h1>
-        <p className="text-xs text-slate-600 font-medium">
+        <p className="text-sm text-slate-600 font-medium mt-2">
           Have questions regarding organic product delivery, bulk hampers, GST invoices, or ERP billing?
         </p>
       </div>
@@ -66,7 +66,7 @@ export const ContactUsPage: React.FC = () => {
         </div>
 
         {/* Form */}
-        <div className="lg:col-span-2 p-8 bg-white rounded-3xl border border-amber-200/80 shadow-md">
+        <div className="lg:col-span-2 p-8 bg-white rounded-[24px] border border-amber-200/80 shadow-sm">
           {!submitted ? (
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <h3 className="font-serif-display font-extrabold text-slate-900 text-xl mb-4">Send Us A Message</h3>
