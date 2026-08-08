@@ -20,8 +20,12 @@
             window.__VITE_API_BASE = m.content;
             return;
           }
-          // Default to same-origin /api
-          window.__VITE_API_BASE = window.location.origin + '/api';
+          // Default to the Render backend for Vercel deployments, otherwise same-origin /api
+          if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('vercel.com')) {
+            window.__VITE_API_BASE = 'https://rila.onrender.com/api';
+          } else {
+            window.__VITE_API_BASE = window.location.origin + '/api';
+          }
         } catch (e) {
           // no-op
         }

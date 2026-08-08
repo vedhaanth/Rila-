@@ -28,7 +28,13 @@ const API_BASE = (() => {
   }
   const runtime = (typeof window !== 'undefined' && (window as any).__VITE_API_BASE) || '';
   if (runtime) return runtime;
-  if (typeof window !== 'undefined') return `${window.location.origin}/api`;
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname || '';
+    if (hostname.includes('vercel.app') || hostname.includes('vercel.com')) {
+      return 'https://rila.onrender.com/api';
+    }
+    return `${window.location.origin}/api`;
+  }
   return '/api';
 })();
 
