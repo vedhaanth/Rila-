@@ -27,11 +27,12 @@ import {
 
 export const ProductsPage: React.FC<{
   products: Product[];
+  isLoading?: boolean;
   selectedCategory: string;
   setSelectedCategory: (cat: string) => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
-}> = ({ products, selectedCategory, setSelectedCategory, searchQuery, setSearchQuery }) => {
+}> = ({ products, isLoading = false, selectedCategory, setSelectedCategory, searchQuery, setSearchQuery }) => {
   const {
     addToCart,
     setSelectedProductForView,
@@ -43,11 +44,9 @@ export const ProductsPage: React.FC<{
     isInWishlist,
     setCurrentPortal,
     addToast,
-    triggerRefresh,
-    adminProfiles
+    triggerRefresh
   } = useApp();
 
-  const [selectedAdminOwner, setSelectedAdminOwner] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'featured' | 'price-low' | 'price-high' | 'rating'>('featured');
   const [priceRange, setPriceRange] = useState<number>(1500);
   const [showFilterDrawer, setShowFilterDrawer] = useState<boolean>(false);
@@ -72,10 +71,6 @@ export const ProductsPage: React.FC<{
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
-      // Admin Owner Filter
-      if (selectedAdminOwner !== 'all' && p.admin_owner !== selectedAdminOwner) {
-        return false;
-      }
       // Category Filter
       if (selectedCategory !== 'All' && p.category.toLowerCase() !== selectedCategory.toLowerCase()) {
         return false;
@@ -99,7 +94,7 @@ export const ProductsPage: React.FC<{
       if (sortBy === 'rating') return b.rating - a.rating;
       return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
     });
-  }, [products, selectedAdminOwner, selectedCategory, priceRange, searchQuery, sortBy]);
+  }, [products, selectedCategory, priceRange, searchQuery, sortBy]);
 
   const getCartQuantity = (productId: string) => {
     const item = cart.find((i) => i.product.product_id === productId);
@@ -124,28 +119,6 @@ export const ProductsPage: React.FC<{
             Browse our curated selection of healthy &amp; quality products
           </p>
         </div>
-
-        {/* Division Switcher */}
-        <div className="flex items-center bg-stone-100 p-1 rounded-lg text-xs font-medium text-stone-600 border border-stone-200 shrink-0">
-          <button
-            onClick={() => setSelectedAdminOwner('all')}
-            className={`px-3 py-1 rounded-md transition ${selectedAdminOwner === 'all' ? 'bg-white text-stone-900 font-semibold shadow-2xs' : 'hover:text-stone-900'}`}
-          >
-            All Items ({products.length})
-          </button>
-          <button
-            onClick={() => setSelectedAdminOwner('admin1')}
-            className={`px-3 py-1 rounded-md transition ${selectedAdminOwner === 'admin1' ? 'bg-white text-stone-900 font-semibold shadow-2xs' : 'hover:text-stone-900'}`}
-          >
-            {adminProfiles.admin1?.business_name || 'Admin 1'}
-          </button>
-          <button
-            onClick={() => setSelectedAdminOwner('admin2')}
-            className={`px-3 py-1 rounded-md transition ${selectedAdminOwner === 'admin2' ? 'bg-white text-stone-900 font-semibold shadow-2xs' : 'hover:text-stone-900'}`}
-          >
-            {adminProfiles.admin2?.business_name || 'Admin 2'}
-          </button>
-        </div>
       </div>
 
       {/* Horizontal Category Pill Bar - Minimal Style */}
@@ -168,7 +141,7 @@ export const ProductsPage: React.FC<{
       </div>
 
       {/* Search, Filter & Sort Controls Bar */}
-      <div className="bg-white rounded-xl border border-stone-200/80 p-2.5 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="bg-white rounded-3xl border border-stone-200/80 p-4 shadow-2xs flex flex-col lg:flex-row items-center justify-between gap-4 dark:bg-slate-950 dark:border-slate-700">
         {/* Search Bar */}
         <div className="relative w-full sm:w-72">
           <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -266,7 +239,6 @@ export const ProductsPage: React.FC<{
             <button
               onClick={() => {
                 setSelectedCategory('All');
-                setSelectedAdminOwner('all');
                 setSearchQuery('');
                 setPriceRange(1500);
               }}
@@ -275,6 +247,12 @@ export const ProductsPage: React.FC<{
               Reset All Filters
             </button>
           </div>
+        </div>
+      ) : isLoading ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="rounded-3xl border border-stone-200 bg-stone-100 p-4 animate-pulse dark:border-slate-700 dark:bg-slate-900" />
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -285,7 +263,7 @@ export const ProductsPage: React.FC<{
             return (
               <div
                 key={p.product_id}
-                className="product-card bg-white rounded-2xl border border-stone-200 overflow-hidden flex flex-col group relative"
+                className="product-card relative overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_70px_-30px_rgba(15,23,42,0.25)] dark:border-slate-700 dark:bg-slate-950"
               >
                 {/* Discount Badge */}
                 {p.discount > 0 && (
@@ -297,13 +275,13 @@ export const ProductsPage: React.FC<{
                 {/* Wishlist Heart */}
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleWishlist(p.product_id); }}
-                  className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm border ${saved
-                    ? 'bg-rose-50 text-rose-500 border-rose-200'
-                    : 'bg-white/90 text-stone-400 hover:text-rose-500 border-stone-200'
+                  className={`absolute top-3 right-3 z-10 w-10 h-10 rounded-full flex items-center justify-center transition shadow-sm border ${saved
+                    ? 'bg-rose-500 text-white border-rose-400'
+                    : 'bg-white/90 text-stone-400 hover:text-rose-500 border-stone-200 dark:bg-slate-900 dark:border-slate-700'
                     }`}
                   title={saved ? 'Remove from Wishlist' : 'Save to Wishlist'}
                 >
-                  <Heart className={`w-3.5 h-3.5 ${saved ? 'fill-rose-500' : ''}`} />
+                  <Heart className={`w-4 h-4 transition ${saved ? 'fill-white' : ''}`} />
                 </button>
 
                 {/* Image */}
@@ -380,14 +358,14 @@ export const ProductsPage: React.FC<{
                         <button
                           onClick={() => addToCart(p, 1)}
                           disabled={p.stock === 0}
-                          className="py-2 bg-stone-950 hover:bg-stone-800 disabled:bg-stone-200 disabled:text-stone-400 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1"
+                          className="py-2 bg-gradient-to-r from-stone-950 via-stone-900 to-stone-800 hover:from-stone-900 hover:via-stone-800 hover:to-stone-700 disabled:bg-stone-200 disabled:text-stone-400 text-white font-bold text-xs rounded-2xl transition flex items-center justify-center gap-1 shadow-[0_10px_24px_-12px_rgba(17,24,39,0.55)]"
                         >
                           <Plus className="w-3 h-3" /> Add
                         </button>
                         <button
                           onClick={() => handleBuyNow(p)}
                           disabled={p.stock === 0}
-                          className="py-2 bg-stone-50 hover:bg-amber-50 text-stone-800 disabled:opacity-50 font-semibold text-xs rounded-xl transition border border-stone-200 hover:border-amber-300"
+                          className="py-2 bg-white hover:bg-amber-50 text-stone-800 disabled:opacity-50 font-semibold text-xs rounded-2xl transition border border-stone-200 hover:border-amber-300 shadow-[0_6px_16px_-10px_rgba(120,53,15,0.28)]"
                         >
                           Buy Now
                         </button>
@@ -411,7 +389,7 @@ export const ProductsPage: React.FC<{
                         </div>
                         <button
                           onClick={() => handleBuyNow(p)}
-                          className="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition"
+                          className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold text-xs rounded-2xl transition shadow-[0_10px_24px_-12px_rgba(245,158,11,0.65)]"
                         >
                           Buy Now
                         </button>
