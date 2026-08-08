@@ -11,31 +11,25 @@ import {
   ProfitLossReport,
   UserProfile
 } from '../types';
+import { resolveApiBase } from './apiBase';
 
 const API_BASE = (() => {
-  // Priority order:
-  // 1. Vite compile-time env var `VITE_API_URL`
-  // 2. Vite compile-time env var `VITE_API_BASE`
-  // 3. Runtime global `window.__VITE_API_BASE` (settable from index.html)
-  // 4. Same-origin `/api` on the current host
   try {
     const viteUrl = (import.meta.env && (import.meta.env.VITE_API_URL as string)) || '';
-    if (viteUrl) return viteUrl;
     const viteBase = (import.meta.env && (import.meta.env.VITE_API_BASE as string)) || '';
-    if (viteBase) return viteBase;
+    const runtime = (typeof window !== 'undefined' && (window as any).__VITE_API_BASE) || '';
+
+    return resolveApiBase(
+      typeof window !== 'undefined'
+        ? { hostname: window.location.hostname, origin: window.location.origin }
+        : { hostname: '', origin: '' },
+      viteUrl,
+      viteBase,
+      runtime
+    );
   } catch (e) {
-    // ignore
+    return resolveApiBase({ hostname: '', origin: '' }, '', '', '');
   }
-  const runtime = (typeof window !== 'undefined' && (window as any).__VITE_API_BASE) || '';
-  if (runtime) return runtime;
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname || '';
-    if (hostname.includes('vercel.app') || hostname.includes('vercel.com')) {
-      return 'https://rila.onrender.com/api';
-    }
-    return `${window.location.origin}/api`;
-  }
-  return '/api';
 })();
 
 export const api = {

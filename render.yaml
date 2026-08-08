@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: relish-mart-erp
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: PORT
+        value: "5000"
+      - key: NODE_ENV
+        value: "production"
+      - key: MONGO_URI
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: VITE_API_URL
+        sync: false

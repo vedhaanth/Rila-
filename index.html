@@ -1,40 +1,44 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RILA | Gourmet Food & Retail ERP Store</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;0,900;1,600&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
-    <!-- Runtime API base override: set window.__VITE_API_BASE to point to backend if needed -->
-    <script>
-      (function(){
-        try {
-          if (typeof window === 'undefined') return;
-          // If already set by hosting platform, keep it
-          if ((window).__VITE_API_BASE) return;
-          // Allow authors to set a meta tag <meta name="vite-api-base" content="https://api.example.com">
-          var m = document.querySelector('meta[name="vite-api-base"]');
-          if (m && m.content) {
-            window.__VITE_API_BASE = m.content;
-            return;
-          }
-          // Default to the Render backend for Vercel deployments, otherwise same-origin /api
-          if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('vercel.com')) {
-            window.__VITE_API_BASE = 'https://rila.onrender.com/api';
-          } else {
-            window.__VITE_API_BASE = window.location.origin + '/api';
-          }
-        } catch (e) {
-          // no-op
-        }
-      })();
-    </script>
-  </head>
-  <body class="font-sans bg-[#fdfbf7] text-[#1a0f0d] antialiased">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
 
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RILA | Gourmet Food & Retail ERP Store</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;0,900;1,600&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&display=swap"
+    rel="stylesheet">
+  <!-- Runtime API base override: set window.__VITE_API_BASE to point to backend if needed -->
+  <script>
+    (function () {
+      try {
+        if (typeof window === 'undefined') return;
+        // If already set by hosting platform, keep it
+        if ((window).__VITE_API_BASE) return;
+        // Allow authors to set a meta tag <meta name="vite-api-base" content="https://api.example.com">
+        var m = document.querySelector('meta[name="vite-api-base"]');
+        if (m && m.content) {
+          window.__VITE_API_BASE = m.content;
+          return;
+        }
+        // Default to the Render backend for Vercel deployments, otherwise same-origin /api
+        if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('vercel.com')) {
+          window.__VITE_API_BASE = 'https://rila.onrender.com/api';
+        } else {
+          window.__VITE_API_BASE = window.location.origin + '/api';
+        }
+      } catch (e) {
+        // no-op
+      }
+    })();
+  </script>
+</head>
+
+<body class="font-sans bg-[#fdfbf7] text-[#1a0f0d] antialiased">
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>
