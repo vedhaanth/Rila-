@@ -32,9 +32,9 @@ interface AppContextType {
   // Auth
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
-  loginAsAdmin: (target?: AdminId) => void;
-  loginAsOrderManager: (employee?: any) => void;
-  loginAsCustomer: (customer: User) => void;
+  loginAsAdmin: (adminUser: any) => void;
+  loginAsCustomer: (customer: any) => void;
+  loginAsOrderManager: (employeeUser: any) => void;
   logout: () => void;
 
   // Cart
@@ -184,37 +184,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Auth Helper Quick Logins
-  const loginAsAdmin = (target: AdminId = 'admin1') => {
-    const adminProfile = adminProfiles[target];
-    const adminLabel = target === 'admin2' ? 'Division B' : 'Division A';
-
+  const loginAsAdmin = (adminUser: any) => {
     setCurrentUser({
-      user_id: target === 'admin2' ? 'ADM-002' : 'ADM-001',
-      name: adminProfile?.admin_name || (target === 'admin2' ? 'Vogue Living Admin' : 'Apex Tech Admin'),
-      email: target === 'admin2' ? 'admin2@smartretail.com' : 'admin1@smartretail.com',
+      user_id: adminUser.admin_id,
+      name: adminUser.admin_name,
+      email: adminUser.email,
       role: 'admin',
-      admin_id: target
+      admin_id: adminUser.admin_id
     });
-    setActiveAdminId(target);
+    setActiveAdminId(adminUser.admin_id);
     setCurrentPortal('admin');
     setActiveAdminTab('dashboard');
-    addToast(`${adminLabel} Access Granted`, `Switched to ${adminProfile?.business_name || 'Admin Portal'}`);
+    addToast('Admin Access Granted', `Logged in as ${adminUser.admin_name}`);
     setIsLoginModalOpen(false);
   };
 
-  const loginAsOrderManager = (employee?: any) => {
+  const loginAsOrderManager = (employeeUser: any) => {
     setCurrentUser({
-      user_id: employee?.employee_id || 'EMP-001',
-      name: employee?.name || 'Order Management Staff',
-      email: employee?.email || 'employee@smartretail.com',
+      user_id: employeeUser.employee_id,
+      name: employeeUser.name,
+      email: employeeUser.email,
       role: 'order_manager',
-      admin_id: employee?.admin_id
+      admin_id: employeeUser.admin_id
     });
-    if (employee?.admin_id) {
-      setActiveAdminId(employee.admin_id);
-    }
     setCurrentPortal('order_manager');
-    addToast('Order Manager Access', `Signed in as ${employee?.name || 'Order Management Staff'}.`);
+    addToast('Employee Access', `Logged in as ${employeeUser.name}`);
     setIsLoginModalOpen(false);
   };
 

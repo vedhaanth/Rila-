@@ -87,7 +87,7 @@ async function seedDatabase() {
       const password = hashPassword(rawPassword);
       return AdminModel.findOneAndUpdate(
         { admin_id },
-        { $set: { ...adminData, password }, $setOnInsert: { admin_id } },
+        { $set: { ...adminData }, $setOnInsert: { admin_id, password } },
         { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       );
     })
