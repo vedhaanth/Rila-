@@ -76,16 +76,16 @@ export const OrderManager: React.FC = () => {
 
   const handleStatusUpdate = async (orderId: string) => {
     try {
-      // In a real app, this would call an API endpoint
+      const updatedOrder = await api.updateOrderStatus(orderId, newStatus);
       setOrders(prevOrders =>
         prevOrders.map(o =>
-          o.order_id === orderId ? { ...o, status: newStatus } : o
+          o.order_id === orderId ? updatedOrder : o
         )
       );
       addToast('Order Updated', `Order #${orderId} status changed to ${newStatus}`);
       setEditingOrderId(null);
-    } catch (err) {
-      addToast('Error Updating Order', 'Failed to update order status.', 'error');
+    } catch (err: any) {
+      addToast('Error Updating Order', err.message || 'Failed to update order status.', 'error');
     }
   };
 
