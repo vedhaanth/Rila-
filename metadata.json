@@ -1,6 +1,0 @@
-{
-  "name": "RILA Sweets & Mithai Bhandar",
-  "description": "Authentic Indian Sweet Shop by RILA featuring pure Desi Ghee Mithai, Bengali Sweets, Dry Fruit Mithai, Ladoos, live order tracking, customer reviews, and dual Halwai admin management.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
