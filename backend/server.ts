@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { randomUUID } from 'crypto';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -57,8 +58,27 @@ async function removeAdmin1SampleData() {
   await BillModel.deleteMany({ admin_id: 'admin1' });
 }
 
+async function generateUniqueCustomerId() {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const candidate = `CUST-${Date.now().toString().slice(-5)}${Math.floor(1000 + Math.random() * 9000)}`;
+    const existing = await CustomerModel.findOne({ user_id: candidate }).select('_id').lean();
+    if (!existing) return candidate;
+  }
+
+  const fallback = `CUST-${randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`;
+  const existingFallback = await CustomerModel.findOne({ user_id: fallback }).select('_id').lean();
+  if (existingFallback) return generateUniqueCustomerId();
+  return fallback;
+}
+
 export async function startServer(app: express.Express, shouldListen = true) {
-  const PORT = Number(process.env.PORT || 3000);
+  const PORT = Number(process.env.PORT || 5000);
+  const frontendOrigins = [
+    process.env.APP_URL,
+    process.env.VITE_API_URL,
+    'https://relish-mart-erp.vercel.app',
+    'https://relish-mart-erp.onrender.com'
+  ].filter(Boolean) as string[];
   let lastDbError: string | null = null;
 
   try {
@@ -75,7 +95,16 @@ export async function startServer(app: express.Express, shouldListen = true) {
     lastDbError = (err as any)?.message || String(err);
   }
 
-  app.use(cors({ origin: process.env.APP_URL || '*' }));
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (frontendOrigins.includes(origin) || /^https:\/\/.*\.vercel\.app$/.test(origin) || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin not allowed by CORS: ${origin}`));
+    },
+    credentials: true
+  }));
   app.use(express.json({ limit: '10mb' }));
 
   async function triggerEmail(
@@ -124,6 +153,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
         return res.status(400).json({ error: 'Name, email, and password are required' });
       }
       const normalizedEmail = String(email).trim().toLowerCase();
+      const generatedUserId = await generateUniqueCustomerId();
       const customer = await CustomerModel.findOneAndUpdate(
         { email: normalizedEmail },
         {
@@ -135,7 +165,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
             password: String(password).trim()
           },
           $setOnInsert: {
-            user_id: `CUST-${Date.now().toString().slice(-5)}`,
+            user_id: generatedUserId,
             role: 'customer'
           }
         },
@@ -376,6 +406,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
         const trackingNo = `TRK-${Math.floor(100000 + Math.random() * 900000)}`;
         orderIndex++;
 
+        const resolvedCustomerId = customer_id?.trim() || (await generateUniqueCustomerId());
         const customerUser = await CustomerModel.findOneAndUpdate(
           { email: customer_email.trim().toLowerCase() },
           {
@@ -387,7 +418,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
               role: 'customer'
             },
             $setOnInsert: {
-              user_id: customer_id || `CUST-${Date.now().toString().slice(-4)}`
+              user_id: resolvedCustomerId
             }
           },
           { upsert: true, returnDocument: 'after' }
@@ -397,7 +428,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
         const newOrder = new OrderModel({
           order_id: subOrderId,
           master_order_id: masterOrderId,
-          customer_id: customerUser?.user_id || customer_id || `CUST-${Date.now().toString().slice(-4)}`,
+          customer_id: customerUser?.user_id || resolvedCustomerId,
           customer_name,
           customer_email,
           customer_phone,

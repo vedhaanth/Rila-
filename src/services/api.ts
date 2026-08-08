@@ -14,12 +14,15 @@ import {
 
 const API_BASE = (() => {
   // Priority order:
-  // 1. Vite compile-time env var `VITE_API_BASE`
-  // 2. Runtime global `window.__VITE_API_BASE` (settable from index.html)
-  // 3. Same-origin `/api` on the current host
+  // 1. Vite compile-time env var `VITE_API_URL`
+  // 2. Vite compile-time env var `VITE_API_BASE`
+  // 3. Runtime global `window.__VITE_API_BASE` (settable from index.html)
+  // 4. Same-origin `/api` on the current host
   try {
-    const vite = (import.meta.env && (import.meta.env.VITE_API_BASE as string)) || '';
-    if (vite) return vite;
+    const viteUrl = (import.meta.env && (import.meta.env.VITE_API_URL as string)) || '';
+    if (viteUrl) return viteUrl;
+    const viteBase = (import.meta.env && (import.meta.env.VITE_API_BASE as string)) || '';
+    if (viteBase) return viteBase;
   } catch (e) {
     // ignore
   }
