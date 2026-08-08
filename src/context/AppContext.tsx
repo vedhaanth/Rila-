@@ -87,7 +87,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeCustomerTab, setActiveCustomerTab] = useState<'home' | 'products' | 'about' | 'contact' | 'feedback' | 'orders' | 'account'>('home');
   const [activeAdminTab, setActiveAdminTab] = useState<'dashboard' | 'products' | 'orders' | 'inventory' | 'billing' | 'expenses' | 'reports' | 'customers' | 'settings'>('dashboard');
   const [activeAdminId, setActiveAdminId] = useState<AdminId>('admin1');
-  const [adminProfiles, setAdminProfiles] = useState<Record<string, AdminProfile>>(ADMIN_PROFILES);
+  const [adminProfiles, setAdminProfiles] = useState<Record<string, AdminProfile>>({});
 
   // Start with no logged in user
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -185,7 +185,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Auth Helper Quick Logins
   const loginAsAdmin = (target: AdminId = 'admin1') => {
-    const adminProfile = adminProfiles[target] || ADMIN_PROFILES[target];
+    const adminProfile = adminProfiles[target];
     const adminLabel = target === 'admin2' ? 'Division B' : 'Division A';
 
     setCurrentUser({
