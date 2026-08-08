@@ -30,7 +30,8 @@ var import_crypto = require("crypto");
 var import_express = __toESM(require("express"), 1);
 var import_cors = __toESM(require("cors"), 1);
 var import_path = __toESM(require("path"), 1);
-var import_mongoose11 = __toESM(require("mongoose"), 1);
+var import_mongoose12 = __toESM(require("mongoose"), 1);
+var import_bcryptjs = __toESM(require("bcryptjs"), 1);
 var import_vite = require("vite");
 
 // src/utils/finance.js
@@ -383,35 +384,29 @@ var CustomerSchema = new import_mongoose10.Schema(
 var CustomerModel = import_mongoose10.default.model("Customer", CustomerSchema);
 var Customer_default = CustomerModel;
 
-// src/data/seedData.ts
-var ADMIN_PROFILES = {
-  admin1: {
-    admin_id: "admin1",
-    admin_name: "Apex Tech Admin",
-    email: "admin1@smartretail.com",
-    business_name: "Apex Tech & Electronics",
-    phone: "+1 234 567 8900",
-    gstin: "27AADCB2230M1Z2",
-    address: "123 Tech Park, Silicon Valley, CA",
-    categories: ["Electronics", "Gadgets"]
+// src/models/Employee.ts
+var import_mongoose11 = __toESM(require("mongoose"), 1);
+var EmployeeSchema = new import_mongoose11.Schema(
+  {
+    employee_id: { type: String, required: true, unique: true },
+    admin_id: { type: String, required: true },
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    role: { type: String, default: "order_manager" },
+    phone: { type: String, default: "" }
   },
-  admin2: {
-    admin_id: "admin2",
-    admin_name: "Vogue Living Admin",
-    email: "admin2@smartretail.com",
-    business_name: "Vogue & Living Retail",
-    phone: "+1 987 654 3210",
-    gstin: "27AADCB2230M1Z3",
-    address: "456 Fashion Ave, New York, NY",
-    categories: ["Clothing", "Home"]
-  }
-};
+  { timestamps: true }
+);
+var EmployeeModel = import_mongoose11.default.model("Employee", EmployeeSchema);
+var Employee_default = EmployeeModel;
 
 // backend/server.ts
+var SALT_ROUNDS = 10;
 async function seedDatabase() {
-  const db = import_mongoose11.default.connection.db;
+  const db = import_mongoose12.default.connection.db;
   if (!db) return;
-  const collectionNames = ["products", "orders", "admins", "customers", "bills", "expenses", "suppliers", "feedbacks", "emaillogs"];
+  const collectionNames = ["products", "orders", "admins", "customers", "bills", "expenses", "suppliers", "feedbacks", "emaillogs", "employees"];
   for (const name of collectionNames) {
     try {
       await db.createCollection(name);
@@ -421,25 +416,41 @@ async function seedDatabase() {
       }
     }
   }
-  const adminSeedEntries = Object.values(ADMIN_PROFILES).map((profile) => ({
-    ...profile,
-    password: "admin123"
-  }));
+  const adminSeedEntries = [
+    {
+      admin_id: "admin1",
+      admin_name: process.env.ADMIN_1_NAME || "Apex Tech Admin",
+      email: (process.env.ADMIN_1_EMAIL || "admin1@smartretail.com").toLowerCase(),
+      rawPassword: process.env.ADMIN_1_PASSWORD || "admin123",
+      business_name: process.env.ADMIN_1_BUSINESS || "Apex Tech & Electronics",
+      phone: "+1 234 567 8900",
+      gstin: "27AADCB2230M1Z2",
+      address: "123 Tech Park, Silicon Valley, CA",
+      categories: ["Electronics", "Gadgets"]
+    },
+    {
+      admin_id: "admin2",
+      admin_name: process.env.ADMIN_2_NAME || "Vogue Living Admin",
+      email: (process.env.ADMIN_2_EMAIL || "admin2@smartretail.com").toLowerCase(),
+      rawPassword: process.env.ADMIN_2_PASSWORD || "admin123",
+      business_name: process.env.ADMIN_2_BUSINESS || "Vogue & Living Retail",
+      phone: "+1 987 654 3210",
+      gstin: "27AADCB2230M1Z3",
+      address: "456 Fashion Ave, New York, NY",
+      categories: ["Clothing", "Home"]
+    }
+  ];
   await Promise.all(
-    adminSeedEntries.map((admin) => {
-      const { admin_id, ...adminData } = admin;
+    adminSeedEntries.map(async (admin) => {
+      const { admin_id, rawPassword, ...adminData } = admin;
+      const password = await import_bcryptjs.default.hash(rawPassword, SALT_ROUNDS);
       return Admin_default.findOneAndUpdate(
         { admin_id },
-        { $set: adminData, $setOnInsert: { admin_id } },
+        { $set: { ...adminData, password }, $setOnInsert: { admin_id } },
         { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
       );
     })
   );
-}
-async function removeAdmin1SampleData() {
-  await Product_default.deleteMany({ admin_owner: "admin1" });
-  await Order_default.deleteMany({ admin_id: "admin1" });
-  await Bill_default.deleteMany({ admin_id: "admin1" });
 }
 async function generateUniqueCustomerId() {
   for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -466,9 +477,6 @@ async function startServer(app, shouldListen = true) {
     console.log(`Connected to MongoDB at ${connection.host}`);
     lastDbError = null;
     await seedDatabase();
-    if (process.env.NODE_ENV !== "production") {
-      await removeAdmin1SampleData();
-    }
     console.log("Database collections initialized and seeded.");
   } catch (err) {
     console.error("Failed to connect to MongoDB:", err);
@@ -499,7 +507,7 @@ async function startServer(app, shouldListen = true) {
     return log;
   }
   app.get("/api/health", (req, res) => {
-    const dbStatus = import_mongoose11.default.connection.readyState === 1 ? "connected" : "disconnected";
+    const dbStatus = import_mongoose12.default.connection.readyState === 1 ? "connected" : "disconnected";
     const payload = { status: "ok", dbStatus, time: (/* @__PURE__ */ new Date()).toISOString() };
     if (lastDbError) payload.dbError = lastDbError;
     res.json(payload);
@@ -507,11 +515,102 @@ async function startServer(app, shouldListen = true) {
   app.post("/api/admin/login", async (req, res) => {
     try {
       const { email, password } = req.body;
-      const admin = await Admin_default.findOne({ email, password });
-      if (!admin) {
-        return res.status(401).json({ error: "Invalid email or password" });
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
       }
-      res.json(admin);
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const rawPassword = String(password);
+      const admin = await Admin_default.findOne({ email: normalizedEmail });
+      if (admin) {
+        const match = await import_bcryptjs.default.compare(rawPassword, admin.password);
+        if (!match) return res.status(401).json({ error: "Invalid email or password" });
+        const { password: _, ...adminResponse } = admin.toObject();
+        return res.json({ ...adminResponse, user_type: "admin" });
+      }
+      const employee = await Employee_default.findOne({ email: normalizedEmail });
+      if (employee) {
+        const match = await import_bcryptjs.default.compare(rawPassword, employee.password);
+        if (!match) return res.status(401).json({ error: "Invalid email or password" });
+        const { password: _, ...employeeResponse } = employee.toObject();
+        return res.json({ ...employeeResponse, user_type: "employee" });
+      }
+      return res.status(401).json({ error: "Invalid email or password" });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app.get("/api/employees", async (req, res) => {
+    try {
+      const { admin_id } = req.query;
+      const filter = {};
+      if (admin_id && admin_id !== "all") {
+        filter.admin_id = admin_id;
+      }
+      const employees = await Employee_default.find(filter).select("-password").sort({ createdAt: -1 });
+      res.json(employees);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app.post("/api/employees", async (req, res) => {
+    try {
+      const { admin_id, name, email, password, role, phone } = req.body;
+      if (!admin_id || !name || !email || !password) {
+        return res.status(400).json({ error: "Missing required fields (admin_id, name, email, password)" });
+      }
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const existing = await Employee_default.findOne({ email: normalizedEmail });
+      if (existing) {
+        return res.status(400).json({ error: "An employee with this email already exists" });
+      }
+      const hashedPassword = await import_bcryptjs.default.hash(String(password).trim(), SALT_ROUNDS);
+      const employee = new Employee_default({
+        employee_id: `EMP-${Date.now().toString().slice(-8)}`,
+        admin_id,
+        name: String(name).trim(),
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: role || "order_manager",
+        phone: String(phone || "").trim()
+      });
+      await employee.save();
+      const { password: _, ...response } = employee.toObject();
+      res.status(201).json(response);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app.put("/api/employees/:id", async (req, res) => {
+    try {
+      const updateData = { ...req.body };
+      if (updateData.email) {
+        updateData.email = String(updateData.email).trim().toLowerCase();
+      }
+      if (updateData.password && updateData.password.trim()) {
+        updateData.password = await import_bcryptjs.default.hash(String(updateData.password).trim(), SALT_ROUNDS);
+      } else {
+        delete updateData.password;
+      }
+      const employee = await Employee_default.findOneAndUpdate(
+        { employee_id: req.params.id },
+        updateData,
+        { returnDocument: "after" }
+      ).select("-password");
+      if (!employee) {
+        return res.status(404).json({ error: "Employee not found" });
+      }
+      res.json(employee);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app.delete("/api/employees/:id", async (req, res) => {
+    try {
+      const result = await Employee_default.deleteOne({ employee_id: req.params.id });
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ error: "Employee not found" });
+      }
+      res.json({ success: true, message: "Employee deleted" });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -523,7 +622,12 @@ async function startServer(app, shouldListen = true) {
         return res.status(400).json({ error: "Name, email, and password are required" });
       }
       const normalizedEmail = String(email).trim().toLowerCase();
+      const existing = await Customer_default.findOne({ email: normalizedEmail });
+      if (existing) {
+        return res.status(400).json({ error: "An account with this email already exists. Please log in." });
+      }
       const generatedUserId = await generateUniqueCustomerId();
+      const hashedPassword = await import_bcryptjs.default.hash(String(password).trim(), SALT_ROUNDS);
       const customer = await Customer_default.findOneAndUpdate(
         { email: normalizedEmail },
         {
@@ -532,7 +636,7 @@ async function startServer(app, shouldListen = true) {
             phone: String(phone || "").trim(),
             address: String(address || "").trim(),
             email: normalizedEmail,
-            password: String(password).trim()
+            password: hashedPassword
           },
           $setOnInsert: {
             user_id: generatedUserId,
@@ -549,18 +653,17 @@ async function startServer(app, shouldListen = true) {
   app.post("/api/customers/login", async (req, res) => {
     try {
       const { email, password } = req.body;
-      if (!email) {
-        return res.status(400).json({ error: "Email is required" });
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
       }
       const normalizedEmail = String(email).trim().toLowerCase();
       const customer = await Customer_default.findOne({ email: normalizedEmail });
       if (!customer) {
         return res.status(401).json({ error: "Customer account not found" });
       }
-      if (customer.password) {
-        if (!password || password !== customer.password) {
-          return res.status(401).json({ error: "Invalid email or password" });
-        }
+      const match = await import_bcryptjs.default.compare(String(password), customer.password);
+      if (!match) {
+        return res.status(401).json({ error: "Invalid email or password" });
       }
       const { password: _, ...customerResponse } = customer.toObject();
       res.json(customerResponse);
@@ -1313,6 +1416,12 @@ async function startServer(app, shouldListen = true) {
       res.status(500).json({ error: err.message });
     }
   });
+  app.use((err, _req, res, _next) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+    console.error(`[ERROR] ${status} \u2014 ${message}`, err.stack || "");
+    res.status(status).json({ error: message });
+  });
   if (process.env.NODE_ENV !== "production") {
     const vite = await (0, import_vite.createServer)({
       server: { middlewareMode: true },
@@ -1322,7 +1431,7 @@ async function startServer(app, shouldListen = true) {
   } else {
     const distPath = import_path.default.join(process.cwd(), "dist");
     app.use(import_express.default.static(distPath));
-    app.get("*", (req, res) => {
+    app.get("*", (_req, res) => {
       res.sendFile(import_path.default.join(distPath, "index.html"));
     });
   }

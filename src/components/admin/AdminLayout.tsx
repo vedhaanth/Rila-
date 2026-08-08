@@ -53,6 +53,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
     { id: 'expenses', label: 'Expense Tracker', icon: Wallet },
     { id: 'reports', label: 'P&L Reports', icon: BarChart3 },
     { id: 'customers', label: 'Customer Directory', icon: Users },
+    { id: 'employees', label: 'Staff & Employees', icon: Shield },
     { id: 'settings', label: 'Division Settings', icon: Settings }
   ];
 

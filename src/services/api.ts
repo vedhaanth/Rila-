@@ -9,7 +9,8 @@ import {
   AdminId,
   OrderStatus,
   ProfitLossReport,
-  UserProfile
+  UserProfile,
+  Employee
 } from '../types';
 import { resolveApiBase } from './apiBase';
 
@@ -114,11 +115,6 @@ export const api = {
 
   async deleteProduct(id: string): Promise<boolean> {
     const res = await fetch(`${API_BASE}/products/${id}`, { method: 'DELETE' });
-    return res.ok;
-  },
-
-  async seedSampleProducts(): Promise<boolean> {
-    const res = await fetch(`${API_BASE}/products/seed-sample`, { method: 'POST' });
     return res.ok;
   },
 
@@ -353,5 +349,52 @@ export const api = {
       console.error(err);
       return null;
     }
+  },
+
+  // EMPLOYEES
+  async getEmployees(admin_id?: string): Promise<Employee[]> {
+    try {
+      const query = admin_id ? `?admin_id=${encodeURIComponent(admin_id)}` : '';
+      const res = await fetch(`${API_BASE}/employees${query}`);
+      if (!res.ok) throw new Error('Failed to fetch employees');
+      return await res.json();
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  },
+
+  async createEmployee(data: { admin_id: string; name: string; email: string; password: string; role?: string; phone?: string }): Promise<Employee> {
+    const res = await fetch(`${API_BASE}/employees`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to create employee' }));
+      throw new Error(err.error || 'Failed to create employee');
+    }
+    return await res.json();
+  },
+
+  async updateEmployee(id: string, data: Partial<Employee>): Promise<Employee> {
+    const res = await fetch(`${API_BASE}/employees/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to update employee' }));
+      throw new Error(err.error || 'Failed to update employee');
+    }
+    return await res.json();
+  },
+
+  async deleteEmployee(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/employees/${id}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error('Failed to delete employee');
+    return await res.json();
   }
 };

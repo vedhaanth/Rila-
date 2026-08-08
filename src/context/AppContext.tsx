@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Product, AdminId, Order, Bill, EmailLog, AdminProfile } from '../types';
 import { api } from '../services/api';
-import { ADMIN_PROFILES } from '../data/seedData';
-import { resolveAdminLogin } from '../utils/adminLogin';
 
 export interface CartItem {
   product: Product;
@@ -22,8 +20,8 @@ interface AppContextType {
   setCurrentPortal: (portal: 'customer' | 'admin' | 'order_manager') => void;
   activeCustomerTab: 'home' | 'products' | 'about' | 'contact' | 'feedback' | 'orders' | 'account';
   setActiveCustomerTab: (tab: 'home' | 'products' | 'about' | 'contact' | 'feedback' | 'orders' | 'account') => void;
-  activeAdminTab: 'dashboard' | 'products' | 'orders' | 'inventory' | 'billing' | 'expenses' | 'reports' | 'customers' | 'settings';
-  setActiveAdminTab: (tab: 'dashboard' | 'products' | 'orders' | 'inventory' | 'billing' | 'expenses' | 'reports' | 'customers' | 'settings') => void;
+  activeAdminTab: 'dashboard' | 'products' | 'orders' | 'inventory' | 'billing' | 'expenses' | 'reports' | 'customers' | 'employees' | 'settings';
+  setActiveAdminTab: (tab: 'dashboard' | 'products' | 'orders' | 'inventory' | 'billing' | 'expenses' | 'reports' | 'customers' | 'employees' | 'settings') => void;
 
   // Active Admin Selection
   activeAdminId: AdminId;
@@ -35,7 +33,7 @@ interface AppContextType {
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
   loginAsAdmin: (target?: AdminId) => void;
-  loginAsOrderManager: () => void;
+  loginAsOrderManager: (employee?: any) => void;
   loginAsCustomer: (customer: User) => void;
   logout: () => void;
 
@@ -204,15 +202,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsLoginModalOpen(false);
   };
 
-  const loginAsOrderManager = () => {
+  const loginAsOrderManager = (employee?: any) => {
     setCurrentUser({
-      user_id: 'EMP-001',
-      name: 'Order Management Staff',
-      email: 'employee@smartretail.com',
-      role: 'order_manager'
+      user_id: employee?.employee_id || 'EMP-001',
+      name: employee?.name || 'Order Management Staff',
+      email: employee?.email || 'employee@smartretail.com',
+      role: 'order_manager',
+      admin_id: employee?.admin_id
     });
+    if (employee?.admin_id) {
+      setActiveAdminId(employee.admin_id);
+    }
     setCurrentPortal('order_manager');
-    addToast('Order Manager Access', 'Signed in as order management staff.');
+    addToast('Order Manager Access', `Signed in as ${employee?.name || 'Order Management Staff'}.`);
     setIsLoginModalOpen(false);
   };
 

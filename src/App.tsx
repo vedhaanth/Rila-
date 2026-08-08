@@ -32,6 +32,7 @@ import { AdminBilling } from './components/admin/AdminBilling';
 import { AdminExpenses } from './components/admin/AdminExpenses';
 import { AdminReports } from './components/admin/AdminReports';
 import { AdminCustomers } from './components/admin/AdminCustomers';
+import { AdminEmployees } from './components/admin/AdminEmployees';
 import { AdminSettings } from './components/admin/AdminSettings';
 
 // Order Manager Component
@@ -111,6 +112,7 @@ export function App() {
           {activeAdminTab === 'expenses' && <AdminExpenses />}
           {activeAdminTab === 'reports' && <AdminReports />}
           {activeAdminTab === 'customers' && <AdminCustomers />}
+          {activeAdminTab === 'employees' && <AdminEmployees />}
           {activeAdminTab === 'settings' && <AdminSettings />}
         </AdminLayout>
       )}

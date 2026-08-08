@@ -4,10 +4,13 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 import { createServer as createViteServer } from 'vite';
 import { AdminId, OrderStatus, EmailLog } from '../src/types';
 import { calculateFinanceMetrics } from '../src/utils/finance.js';
 import { connectToDatabase } from '../src/db/connect';
+
+const SALT_ROUNDS = 10;
 
 import ProductModel from '../src/models/Product';
 import OrderModel from '../src/models/Order';
@@ -18,13 +21,13 @@ import FeedbackModel from '../src/models/Feedback';
 import EmailLogModel from '../src/models/EmailLog';
 import AdminModel from '../src/models/Admin';
 import CustomerModel from '../src/models/Customer';
-import { ADMIN_PROFILES } from '../src/data/seedData';
+import EmployeeModel from '../src/models/Employee';
 
 async function seedDatabase() {
   const db = mongoose.connection.db;
   if (!db) return;
 
-  const collectionNames = ['products', 'orders', 'admins', 'customers', 'bills', 'expenses', 'suppliers', 'feedbacks', 'emaillogs'];
+  const collectionNames = ['products', 'orders', 'admins', 'customers', 'bills', 'expenses', 'suppliers', 'feedbacks', 'emaillogs', 'employees'];
   for (const name of collectionNames) {
     try {
       await db.createCollection(name);
@@ -35,28 +38,44 @@ async function seedDatabase() {
     }
   }
 
-  const adminSeedEntries = Object.values(ADMIN_PROFILES).map((profile) => ({
-    ...profile,
-    password: 'admin123'
-  }));
+  const adminSeedEntries = [
+    {
+      admin_id: 'admin1',
+      admin_name: process.env.ADMIN_1_NAME || 'Apex Tech Admin',
+      email: (process.env.ADMIN_1_EMAIL || 'admin1@smartretail.com').toLowerCase(),
+      rawPassword: process.env.ADMIN_1_PASSWORD || 'admin123',
+      business_name: process.env.ADMIN_1_BUSINESS || 'Apex Tech & Electronics',
+      phone: '+1 234 567 8900',
+      gstin: '27AADCB2230M1Z2',
+      address: '123 Tech Park, Silicon Valley, CA',
+      categories: ['Electronics', 'Gadgets']
+    },
+    {
+      admin_id: 'admin2',
+      admin_name: process.env.ADMIN_2_NAME || 'Vogue Living Admin',
+      email: (process.env.ADMIN_2_EMAIL || 'admin2@smartretail.com').toLowerCase(),
+      rawPassword: process.env.ADMIN_2_PASSWORD || 'admin123',
+      business_name: process.env.ADMIN_2_BUSINESS || 'Vogue & Living Retail',
+      phone: '+1 987 654 3210',
+      gstin: '27AADCB2230M1Z3',
+      address: '456 Fashion Ave, New York, NY',
+      categories: ['Clothing', 'Home']
+    }
+  ];
 
   await Promise.all(
-    adminSeedEntries.map((admin) => {
-      const { admin_id, ...adminData } = admin;
+    adminSeedEntries.map(async (admin) => {
+      const { admin_id, rawPassword, ...adminData } = admin;
+      const password = await bcrypt.hash(rawPassword, SALT_ROUNDS);
       return AdminModel.findOneAndUpdate(
         { admin_id },
-        { $set: adminData, $setOnInsert: { admin_id } },
+        { $set: { ...adminData, password }, $setOnInsert: { admin_id } },
         { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       );
     })
   );
 }
 
-async function removeAdmin1SampleData() {
-  await ProductModel.deleteMany({ admin_owner: 'admin1' });
-  await OrderModel.deleteMany({ admin_id: 'admin1' });
-  await BillModel.deleteMany({ admin_id: 'admin1' });
-}
 
 async function generateUniqueCustomerId() {
   for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -86,9 +105,6 @@ export async function startServer(app: express.Express, shouldListen = true) {
     console.log(`Connected to MongoDB at ${connection.host}`);
     lastDbError = null;
     await seedDatabase();
-    if (process.env.NODE_ENV !== 'production') {
-      await removeAdmin1SampleData();
-    }
     console.log('Database collections initialized and seeded.');
   } catch (err) {
     console.error('Failed to connect to MongoDB:', err);
@@ -136,11 +152,118 @@ export async function startServer(app: express.Express, shouldListen = true) {
   app.post('/api/admin/login', async (req, res) => {
     try {
       const { email, password } = req.body;
-      const admin = await AdminModel.findOne({ email, password });
-      if (!admin) {
-        return res.status(401).json({ error: 'Invalid email or password' });
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
       }
-      res.json(admin);
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const rawPassword = String(password);
+
+      // Check if Admin
+      const admin = await AdminModel.findOne({ email: normalizedEmail });
+      if (admin) {
+        const match = await bcrypt.compare(rawPassword, admin.password);
+        if (!match) return res.status(401).json({ error: 'Invalid email or password' });
+        const { password: _, ...adminResponse } = admin.toObject();
+        return res.json({ ...adminResponse, user_type: 'admin' });
+      }
+
+      // Check if Employee
+      const employee = await EmployeeModel.findOne({ email: normalizedEmail });
+      if (employee) {
+        const match = await bcrypt.compare(rawPassword, employee.password);
+        if (!match) return res.status(401).json({ error: 'Invalid email or password' });
+        const { password: _, ...employeeResponse } = employee.toObject();
+        return res.json({ ...employeeResponse, user_type: 'employee' });
+      }
+
+      return res.status(401).json({ error: 'Invalid email or password' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Employee CRUD endpoints
+  app.get('/api/employees', async (req, res) => {
+    try {
+      const { admin_id } = req.query;
+      const filter: any = {};
+      if (admin_id && admin_id !== 'all') {
+        filter.admin_id = admin_id;
+      }
+      const employees = await EmployeeModel.find(filter).select('-password').sort({ createdAt: -1 });
+      res.json(employees);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/employees', async (req, res) => {
+    try {
+      const { admin_id, name, email, password, role, phone } = req.body;
+      if (!admin_id || !name || !email || !password) {
+        return res.status(400).json({ error: 'Missing required fields (admin_id, name, email, password)' });
+      }
+
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const existing = await EmployeeModel.findOne({ email: normalizedEmail });
+      if (existing) {
+        return res.status(400).json({ error: 'An employee with this email already exists' });
+      }
+
+      const hashedPassword = await bcrypt.hash(String(password).trim(), SALT_ROUNDS);
+      const employee = new EmployeeModel({
+        employee_id: `EMP-${Date.now().toString().slice(-8)}`,
+        admin_id,
+        name: String(name).trim(),
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: role || 'order_manager',
+        phone: String(phone || '').trim()
+      });
+
+      await employee.save();
+      const { password: _, ...response } = employee.toObject();
+      res.status(201).json(response);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/employees/:id', async (req, res) => {
+    try {
+      const updateData: any = { ...req.body };
+      if (updateData.email) {
+        updateData.email = String(updateData.email).trim().toLowerCase();
+      }
+      // If a new plaintext password is provided, hash it before saving
+      if (updateData.password && updateData.password.trim()) {
+        updateData.password = await bcrypt.hash(String(updateData.password).trim(), SALT_ROUNDS);
+      } else {
+        delete updateData.password; // Don't update password field if empty
+      }
+
+      const employee = await EmployeeModel.findOneAndUpdate(
+        { employee_id: req.params.id },
+        updateData,
+        { returnDocument: 'after' }
+      ).select('-password');
+
+      if (!employee) {
+        return res.status(404).json({ error: 'Employee not found' });
+      }
+      res.json(employee);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/employees/:id', async (req, res) => {
+    try {
+      const result = await EmployeeModel.deleteOne({ employee_id: req.params.id });
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ error: 'Employee not found' });
+      }
+      res.json({ success: true, message: 'Employee deleted' });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -153,7 +276,12 @@ export async function startServer(app: express.Express, shouldListen = true) {
         return res.status(400).json({ error: 'Name, email, and password are required' });
       }
       const normalizedEmail = String(email).trim().toLowerCase();
+      const existing = await CustomerModel.findOne({ email: normalizedEmail });
+      if (existing) {
+        return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
+      }
       const generatedUserId = await generateUniqueCustomerId();
+      const hashedPassword = await bcrypt.hash(String(password).trim(), SALT_ROUNDS);
       const customer = await CustomerModel.findOneAndUpdate(
         { email: normalizedEmail },
         {
@@ -162,7 +290,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
             phone: String(phone || '').trim(),
             address: String(address || '').trim(),
             email: normalizedEmail,
-            password: String(password).trim()
+            password: hashedPassword
           },
           $setOnInsert: {
             user_id: generatedUserId,
@@ -180,18 +308,17 @@ export async function startServer(app: express.Express, shouldListen = true) {
   app.post('/api/customers/login', async (req, res) => {
     try {
       const { email, password } = req.body;
-      if (!email) {
-        return res.status(400).json({ error: 'Email is required' });
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
       }
       const normalizedEmail = String(email).trim().toLowerCase();
       const customer = await CustomerModel.findOne({ email: normalizedEmail });
       if (!customer) {
         return res.status(401).json({ error: 'Customer account not found' });
       }
-      if (customer.password) {
-        if (!password || password !== customer.password) {
-          return res.status(401).json({ error: 'Invalid email or password' });
-        }
+      const match = await bcrypt.compare(String(password), customer.password);
+      if (!match) {
+        return res.status(401).json({ error: 'Invalid email or password' });
       }
       const { password: _, ...customerResponse } = customer.toObject();
       res.json(customerResponse);
@@ -1042,6 +1169,14 @@ export async function startServer(app: express.Express, shouldListen = true) {
     }
   });
 
+  // Global error-handling middleware — must be added BEFORE static files / Vite middleware
+  app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || 'Internal Server Error';
+    console.error(`[ERROR] ${status} — ${message}`, err.stack || '');
+    res.status(status).json({ error: message });
+  });
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -1051,7 +1186,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    app.get('*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

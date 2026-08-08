@@ -3,7 +3,6 @@ import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 import { X, Eye, EyeOff, ArrowRight, Lock, Mail } from 'lucide-react';
 import rilaLogo from '../assets/images/rila_logo.jpg';
-import { resolveAdminLogin } from '../utils/adminLogin';
 
 export const LoginModal: React.FC = () => {
   const {
@@ -49,24 +48,18 @@ export const LoginModal: React.FC = () => {
       return;
     }
 
-    const adminTarget = resolveAdminLogin(email, password);
-    if (adminTarget) {
-      try {
-        const admin = await api.loginAdmin(email.trim(), password.trim());
-        if (admin?.admin_id) {
-          loginAsAdmin(admin.admin_id as any);
-          return;
-        }
-      } catch (err: any) {
-        // Fall back to the quick-login mapping for legacy/admin demo credentials.
+    // Try Admin / Employee Login
+    try {
+      const res = await api.loginAdmin(email.trim(), password.trim());
+      if (res?.user_type === 'employee' || res?.employee_id) {
+        loginAsOrderManager(res);
+        return;
+      } else if (res?.user_type === 'admin' || res?.admin_id) {
+        loginAsAdmin(res.admin_id);
+        return;
       }
-
-      if (adminTarget === 'order_manager') {
-        loginAsOrderManager();
-      } else {
-        loginAsAdmin(adminTarget);
-      }
-      return;
+    } catch (adminErr) {
+      // Not an admin or employee, fall through to customer login
     }
 
     try {
@@ -74,9 +67,9 @@ export const LoginModal: React.FC = () => {
       loginAsCustomer(customer);
     } catch (err: any) {
       if (err.message && err.message.includes('not found')) {
-        setError('Customer account not found. Use Register to create your profile.');
+        setError('Account not found. Use Register if you are a customer.');
       } else {
-        setError(err.message || 'Customer login failed.');
+        setError(err.message || 'Login failed.');
       }
     }
   };

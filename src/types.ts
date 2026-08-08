@@ -13,6 +13,16 @@ export interface AdminProfile {
   categories: string[];
 }
 
+export interface Employee {
+  employee_id: string;
+  admin_id: AdminId;
+  name: string;
+  email: string;
+  role: string;
+  phone?: string;
+  createdAt?: string;
+}
+
 export interface User {
   user_id: string;
   name: string;
