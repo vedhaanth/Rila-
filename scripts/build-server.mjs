@@ -15,30 +15,12 @@ if (existsSync(mapOut)) {
   rmSync(mapOut, { force: true });
 }
 
-// Keep native addons and large platform-specific packages external.
-// Pure-JS packages like bcryptjs must be bundled so they are available
-// on Render at runtime without relying on node_modules being present.
-const externalPackages = [
-  'express',
-  'cors',
-  'mongoose',
-  'dotenv',
-  'vite',
-  'esbuild',
-  'recharts',
-  'react',
-  'react-dom',
-  'lucide-react',
-  'motion',
-  '@google/genai'
-];
-
 esbuild.buildSync({
   entryPoints: ['backend/run-server.ts'],
   bundle: true,
   platform: 'node',
   format: 'cjs',
-  external: externalPackages,
+  packages: 'external',
   sourcemap: true,
   outfile: 'server.cjs',
   absWorkingDir: root

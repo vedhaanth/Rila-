@@ -1,16 +1,34 @@
 import 'dotenv/config';
-import { randomUUID } from 'crypto';
+import { randomUUID, scryptSync, randomBytes, timingSafeEqual } from 'crypto';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 import { createServer as createViteServer } from 'vite';
 import { AdminId, OrderStatus, EmailLog } from '../src/types';
 import { calculateFinanceMetrics } from '../src/utils/finance.js';
 import { connectToDatabase } from '../src/db/connect';
 
-const SALT_ROUNDS = 10;
+// Crypto helpers using Node.js built-in — no external dependency needed
+const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 } as const;
+const KEY_LEN = 64;
+
+function hashPassword(password: string): string {
+  const salt = randomBytes(32).toString('hex');
+  const hash = scryptSync(password, salt, KEY_LEN, SCRYPT_PARAMS).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password: string, stored: string): boolean {
+  try {
+    const [salt, storedHash] = stored.split(':');
+    if (!salt || !storedHash) return false;
+    const hash = scryptSync(password, salt, KEY_LEN, SCRYPT_PARAMS);
+    return timingSafeEqual(hash, Buffer.from(storedHash, 'hex'));
+  } catch {
+    return false;
+  }
+}
 
 import ProductModel from '../src/models/Product';
 import OrderModel from '../src/models/Order';
@@ -66,7 +84,7 @@ async function seedDatabase() {
   await Promise.all(
     adminSeedEntries.map(async (admin) => {
       const { admin_id, rawPassword, ...adminData } = admin;
-      const password = await bcrypt.hash(rawPassword, SALT_ROUNDS);
+      const password = hashPassword(rawPassword);
       return AdminModel.findOneAndUpdate(
         { admin_id },
         { $set: { ...adminData, password }, $setOnInsert: { admin_id } },
@@ -161,7 +179,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
       // Check if Admin
       const admin = await AdminModel.findOne({ email: normalizedEmail });
       if (admin) {
-        const match = await bcrypt.compare(rawPassword, admin.password);
+        const match = verifyPassword(rawPassword, admin.password);
         if (!match) return res.status(401).json({ error: 'Invalid email or password' });
         const { password: _, ...adminResponse } = admin.toObject();
         return res.json({ ...adminResponse, user_type: 'admin' });
@@ -170,7 +188,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
       // Check if Employee
       const employee = await EmployeeModel.findOne({ email: normalizedEmail });
       if (employee) {
-        const match = await bcrypt.compare(rawPassword, employee.password);
+        const match = verifyPassword(rawPassword, employee.password);
         if (!match) return res.status(401).json({ error: 'Invalid email or password' });
         const { password: _, ...employeeResponse } = employee.toObject();
         return res.json({ ...employeeResponse, user_type: 'employee' });
@@ -210,7 +228,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
         return res.status(400).json({ error: 'An employee with this email already exists' });
       }
 
-      const hashedPassword = await bcrypt.hash(String(password).trim(), SALT_ROUNDS);
+      const hashedPassword = hashPassword(String(password).trim());
       const employee = new EmployeeModel({
         employee_id: `EMP-${Date.now().toString().slice(-8)}`,
         admin_id,
@@ -237,7 +255,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
       }
       // If a new plaintext password is provided, hash it before saving
       if (updateData.password && updateData.password.trim()) {
-        updateData.password = await bcrypt.hash(String(updateData.password).trim(), SALT_ROUNDS);
+        updateData.password = hashPassword(String(updateData.password).trim());
       } else {
         delete updateData.password; // Don't update password field if empty
       }
@@ -281,7 +299,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
         return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
       }
       const generatedUserId = await generateUniqueCustomerId();
-      const hashedPassword = await bcrypt.hash(String(password).trim(), SALT_ROUNDS);
+      const hashedPassword = hashPassword(String(password).trim());
       const customer = await CustomerModel.findOneAndUpdate(
         { email: normalizedEmail },
         {
@@ -316,7 +334,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
       if (!customer) {
         return res.status(401).json({ error: 'Customer account not found' });
       }
-      const match = await bcrypt.compare(String(password), customer.password);
+      const match = verifyPassword(String(password), customer.password);
       if (!match) {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
