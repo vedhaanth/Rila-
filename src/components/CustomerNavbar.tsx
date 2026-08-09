@@ -407,12 +407,12 @@ export const CustomerNavbar: React.FC<{
           </button>
           <button
             onClick={() => setIsCartOpen(true)}
-            className="relative flex items-center gap-2 px-3 py-2.5 bg-stone-950 hover:bg-stone-800 text-white rounded-xl transition group shadow-[0_8px_24px_-12px_rgba(0,0,0,0.45)] shrink-0 min-w-[44px]"
+            className="relative flex items-center gap-2 px-3 h-10 bg-stone-950 hover:bg-stone-800 text-white rounded-xl transition group shadow-[0_8px_24px_-12px_rgba(0,0,0,0.45)] shrink-0 min-w-[44px] self-center"
             title="View Cart"
             aria-label="View Cart"
           >
             <ShoppingBag className="w-4 h-4 text-amber-400" />
-            <span className="hidden sm:inline text-sm font-semibold text-amber-50">
+            <span className="hidden sm:inline text-sm font-semibold text-amber-50 leading-none">
               {formatINR(cartSubtotal ?? cartTotal ?? 0)}
             </span>
             {cartItemCount > 0 && (
