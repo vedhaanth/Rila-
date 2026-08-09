@@ -532,9 +532,8 @@ export async function startServer(app: express.Express, shouldListen = true) {
         role: 'customer'
       });
       const customerObj = customerDoc?.toObject ? customerDoc.toObject() : customerDoc;
-      if (customerObj) {
-        // Cast to any to satisfy TypeScript when deleting a non-optional property
-        delete (customerObj as any).password;
+      if (customerObj && typeof customerObj === 'object' && customerObj !== null) {
+        delete (customerObj as Record<string, unknown> & { password?: unknown }).password;
       }
       res.json(customerObj);
     } catch (err: any) {
