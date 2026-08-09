@@ -101,6 +101,8 @@ export function App() {
 
               {activeCustomerTab === 'orders' && <OrdersPage />}
 
+              {activeCustomerTab === 'account' && <OrdersPage />}
+
               {activeCustomerTab === 'login' && <LoginPage />}
             </main>
           </div>
