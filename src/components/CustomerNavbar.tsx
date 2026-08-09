@@ -313,7 +313,7 @@ export const CustomerNavbar: React.FC<{
             </div>
           ) : (
             <button
-              onClick={() => setIsLoginModalOpen(true)}
+              onClick={() => setActiveCustomerTab('login')}
               className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-stone-700 hover:text-stone-900 hover:bg-stone-50 rounded-xl transition"
             >
               <User className="w-4 h-4" />
@@ -356,76 +356,78 @@ export const CustomerNavbar: React.FC<{
       </div>
 
       {/* Mobile Drawer */}
-      {isMobileMenuOpen && (
-        <>
-          <div
-            className="fixed inset-0 bg-slate-950/40 z-30 lg:hidden"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-          <div className="absolute top-full left-0 right-0 bg-white/95 border-t border-stone-200 shadow-[0_18px_50px_-20px_rgba(15,23,42,0.35)] z-40 lg:hidden animate-fade-in backdrop-blur-xl">
-            <div className="p-4 space-y-1">
-              {/* Mobile search */}
-              <div className="relative mb-3">
-                <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    if (activeCustomerTab !== 'products') setActiveCustomerTab('products');
-                  }}
-                  className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl bg-stone-50 border border-stone-200 text-stone-800 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition"
-                />
-              </div>
-              {navLinks.map((link) => (
-                <button
-                  key={link.id}
-                  onClick={() => { setActiveCustomerTab(link.id as any); setIsMobileMenuOpen(false); }}
-                  className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition ${activeCustomerTab === link.id
-                    ? 'bg-stone-950 text-amber-400 font-bold'
-                    : 'text-stone-700 hover:bg-stone-50'
-                    }`}
-                >
-                  {link.label}
-                </button>
-              ))}
-              <div className="pt-3 border-t border-stone-200">
-                <p className="px-4 text-xs uppercase tracking-[0.24em] text-stone-500 mb-2">Browse Categories</p>
-                <div className="grid grid-cols-2 gap-2 px-2">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.name}
-                      onClick={() => {
-                        setSelectedCategory(cat.name);
-                        setActiveCustomerTab('products');
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-2xl bg-stone-50 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition"
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
+      {
+        isMobileMenuOpen && (
+          <>
+            <div
+              className="fixed inset-0 bg-slate-950/40 z-30 lg:hidden"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            <div className="absolute top-full left-0 right-0 bg-white/95 border-t border-stone-200 shadow-[0_18px_50px_-20px_rgba(15,23,42,0.35)] z-40 lg:hidden animate-fade-in backdrop-blur-xl">
+              <div className="p-4 space-y-1">
+                {/* Mobile search */}
+                <div className="relative mb-3">
+                  <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      if (activeCustomerTab !== 'products') setActiveCustomerTab('products');
+                    }}
+                    className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl bg-stone-50 border border-stone-200 text-stone-800 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition"
+                  />
                 </div>
-                <button
-                  onClick={() => {
-                    if (currentUser) {
-                      setActiveCustomerTab('orders');
-                    } else {
-                      setIsLoginModalOpen(true);
-                    }
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-stone-950 text-white py-3 text-sm font-semibold hover:bg-stone-800 transition"
-                >
-                  <Heart className="w-4 h-4 text-rose-300" />
-                  View Wishlist {wishlistCount > 0 ? `(${wishlistCount})` : ''}
-                </button>
+                {navLinks.map((link) => (
+                  <button
+                    key={link.id}
+                    onClick={() => { setActiveCustomerTab(link.id as any); setIsMobileMenuOpen(false); }}
+                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition ${activeCustomerTab === link.id
+                      ? 'bg-stone-950 text-amber-400 font-bold'
+                      : 'text-stone-700 hover:bg-stone-50'
+                      }`}
+                  >
+                    {link.label}
+                  </button>
+                ))}
+                <div className="pt-3 border-t border-stone-200">
+                  <p className="px-4 text-xs uppercase tracking-[0.24em] text-stone-500 mb-2">Browse Categories</p>
+                  <div className="grid grid-cols-2 gap-2 px-2">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.name}
+                        onClick={() => {
+                          setSelectedCategory(cat.name);
+                          setActiveCustomerTab('products');
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-2xl bg-stone-50 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition"
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (currentUser) {
+                        setActiveCustomerTab('orders');
+                      } else {
+                        setActiveCustomerTab('login');
+                      }
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-stone-950 text-white py-3 text-sm font-semibold hover:bg-stone-800 transition"
+                  >
+                    <Heart className="w-4 h-4 text-rose-300" />
+                    View Wishlist {wishlistCount > 0 ? `(${wishlistCount})` : ''}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
-    </header>
+          </>
+        )
+      }
+    </header >
   );
 };

@@ -18,8 +18,8 @@ interface AppContextType {
   // Navigation & View Mode
   currentPortal: 'customer' | 'admin' | 'order_manager';
   setCurrentPortal: (portal: 'customer' | 'admin' | 'order_manager') => void;
-  activeCustomerTab: 'home' | 'products' | 'about' | 'contact' | 'feedback' | 'orders' | 'account';
-  setActiveCustomerTab: (tab: 'home' | 'products' | 'about' | 'contact' | 'feedback' | 'orders' | 'account') => void;
+  activeCustomerTab: 'home' | 'products' | 'about' | 'contact' | 'feedback' | 'orders' | 'account' | 'login';
+  setActiveCustomerTab: (tab: 'home' | 'products' | 'about' | 'contact' | 'feedback' | 'orders' | 'account' | 'login') => void;
   activeAdminTab: 'dashboard' | 'products' | 'orders' | 'inventory' | 'billing' | 'expenses' | 'reports' | 'customers' | 'employees' | 'settings';
   setActiveAdminTab: (tab: 'dashboard' | 'products' | 'orders' | 'inventory' | 'billing' | 'expenses' | 'reports' | 'customers' | 'employees' | 'settings') => void;
 
@@ -86,7 +86,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentPortal, setCurrentPortal] = useState<'customer' | 'admin' | 'order_manager'>('customer');
-  const [activeCustomerTab, setActiveCustomerTab] = useState<'home' | 'products' | 'about' | 'contact' | 'feedback' | 'orders' | 'account'>('home');
+  const [activeCustomerTab, setActiveCustomerTab] = useState<'home' | 'products' | 'about' | 'contact' | 'feedback' | 'orders' | 'account' | 'login'>('home');
   const [activeAdminTab, setActiveAdminTab] = useState<'dashboard' | 'products' | 'orders' | 'inventory' | 'billing' | 'expenses' | 'reports' | 'customers' | 'settings'>('dashboard');
   const [activeAdminId, setActiveAdminId] = useState<AdminId>('admin1');
   const [adminProfiles, setAdminProfiles] = useState<Record<string, AdminProfile>>({});
@@ -213,17 +213,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Auth Helper Quick Logins
   const loginAsAdmin = (adminUser: any) => {
+    const normalizedAdmin = typeof adminUser === 'string'
+      ? { admin_id: adminUser, admin_name: 'Admin', email: '' }
+      : adminUser;
+
+    const adminId = normalizedAdmin?.admin_id || normalizedAdmin?.id || 'admin1';
+
     setCurrentUser({
-      user_id: adminUser.admin_id,
-      name: adminUser.admin_name,
-      email: adminUser.email,
+      user_id: adminId,
+      name: normalizedAdmin?.admin_name || 'Admin',
+      email: normalizedAdmin?.email || '',
       role: 'admin',
-      admin_id: adminUser.admin_id
+      admin_id: adminId
     });
-    setActiveAdminId(adminUser.admin_id);
+    setActiveAdminId(adminId);
     setCurrentPortal('admin');
     setActiveAdminTab('dashboard');
-    addToast('Admin Access Granted', `Logged in as ${adminUser.admin_name}`);
+    addToast('Admin Access Granted', `Logged in as ${normalizedAdmin?.admin_name || 'Admin'}`);
     setIsLoginModalOpen(false);
   };
 

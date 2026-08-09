@@ -64,6 +64,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const handleSwitchAdmin = (newId: AdminId) => {
     setActiveAdminId(newId);
+    setActiveAdminTab('dashboard');
     addToast('Switched Division Portal', `Now managing ${adminProfiles[newId]?.business_name || newId}`);
   };
 
@@ -188,6 +189,23 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
           </div>
 
           <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-1">
+              {(['admin1', 'admin2'] as AdminId[]).map((adminId) => {
+                const isActive = activeAdminId === adminId;
+                const label = adminId === 'admin1' ? 'Division A' : 'Division B';
+
+                return (
+                  <button
+                    key={adminId}
+                    onClick={() => handleSwitchAdmin(adminId)}
+                    className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${isActive ? 'bg-slate-950 text-amber-400 shadow' : 'text-slate-700 hover:bg-white hover:text-slate-900'}`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Quick Action Shortcuts */}
             <button
               onClick={() => setActiveAdminTab('billing')}

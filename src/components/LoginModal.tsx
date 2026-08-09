@@ -101,7 +101,7 @@ export const LoginModal: React.FC = () => {
         setIsSubmitting(false);
         return;
       } else if (res?.user_type === 'admin' || res?.admin_id) {
-        loginAsAdmin(res.admin_id);
+        loginAsAdmin(res);
         setIsSubmitting(false);
         return;
       }

@@ -15,6 +15,7 @@ import { OrdersPage } from './components/OrdersPage';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
 import { QuickViewModal } from './components/QuickViewModal';
+import { LoginPage } from './components/LoginPage';
 
 // Shared Modals & Overlays
 import { InvoiceModal } from './components/InvoiceModal';
@@ -99,6 +100,8 @@ export function App() {
               {activeCustomerTab === 'feedback' && <FeedbackPage />}
 
               {activeCustomerTab === 'orders' && <OrdersPage />}
+
+              {activeCustomerTab === 'login' && <LoginPage />}
             </main>
           </div>
 
