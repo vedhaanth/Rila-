@@ -124,7 +124,7 @@ export const HomePage: React.FC<{
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {trustPills.map(({ icon: Icon, label }) => (
-                  <div key={label} className="rounded-3xl border border-stone-200 bg-white p-4 text-sm font-semibold text-slate-900 shadow-sm">
+                  <div key={label} className="rounded-3xl border border-stone-200 bg-white p-4 text-sm font-semibold text-slate-900 shadow-sm card-animated">
                     <div className="flex items-center gap-2 text-amber-700 mb-2">
                       <Icon className="w-4 h-4" />
                       {label}
@@ -141,9 +141,10 @@ export const HomePage: React.FC<{
               <div className="relative h-full rounded-[32px] overflow-hidden border border-white/20 shadow-[0_24px_60px_-30px_rgba(17,24,39,0.15)] bg-[#F5E9D9] backdrop-blur-xl">
                 {heroImage ? (
                   <img
+                    key={heroImage}
                     src={heroImage}
                     alt={heroTitle}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover animate-scale-up"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
@@ -185,7 +186,7 @@ export const HomePage: React.FC<{
             <button
               key={cat.name}
               onClick={() => { setSelectedCategory(cat.name); setActiveCustomerTab('products'); }}
-              className="group relative overflow-hidden rounded-[28px] bg-white border border-stone-200 p-6 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:border-amber-300 hover:shadow-2xl dark:bg-slate-900 dark:border-slate-700"
+              className="group relative overflow-hidden rounded-[28px] bg-white border border-stone-200 p-6 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:border-amber-300 hover:shadow-2xl dark:bg-slate-900 dark:border-slate-700 card-animated"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition" />
               <div className="relative flex items-start gap-4">
@@ -210,7 +211,7 @@ export const HomePage: React.FC<{
       {/* ─── PROMO BANNERS ────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="relative rounded-2xl overflow-hidden bg-white border border-stone-200 shadow-sm group p-8">
+          <div className="relative rounded-2xl overflow-hidden bg-white border border-stone-200 shadow-sm group p-8 card-animated">
             <div className="relative z-10 space-y-3 max-w-xs">
               <span className="inline-block px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold uppercase tracking-wider border border-amber-200">
                 Pure Ghee Specials
@@ -230,7 +231,7 @@ export const HomePage: React.FC<{
             </div>
           </div>
 
-          <div className="relative rounded-2xl overflow-hidden bg-[#F2EAD9] border border-amber-200 shadow-sm group p-8">
+          <div className="relative rounded-2xl overflow-hidden bg-[#F2EAD9] border border-amber-200 shadow-sm group p-8 card-animated">
             <div className="relative z-10 space-y-3 max-w-xs">
               <span className="inline-block px-3 py-1 rounded-full bg-stone-900 text-amber-300 text-[10px] font-bold uppercase tracking-wider">
                 Festive Gifting
@@ -283,7 +284,7 @@ export const HomePage: React.FC<{
                 return (
                   <div
                     key={p.product_id}
-                    className="product-card bg-white rounded-2xl border border-stone-200 overflow-hidden flex flex-col group"
+                    className="product-card bg-white rounded-2xl border border-stone-200 overflow-hidden flex flex-col group card-animated"
                   >
                     {/* Image */}
                     <div

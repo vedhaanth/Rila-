@@ -263,7 +263,7 @@ export const ProductsPage: React.FC<{
             return (
               <div
                 key={p.product_id}
-                className="product-card relative overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_70px_-30px_rgba(15,23,42,0.25)] dark:border-slate-700 dark:bg-slate-950"
+                className="product-card relative overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_70px_-30px_rgba(15,23,42,0.25)] dark:border-slate-700 dark:bg-slate-950 card-animated"
               >
                 {/* Discount Badge */}
                 {p.discount > 0 && (
@@ -304,15 +304,6 @@ export const ProductsPage: React.FC<{
                       <ImageIcon className="w-8 h-8" />
                     </div>
                   )}
-                  {/* Buy overlay button on image */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleBuyNow(p); }}
-                    disabled={p.stock === 0}
-                    title="Buy Now"
-                    className="absolute bottom-3 right-3 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950 text-amber-50 text-xs font-bold shadow hover:scale-105 transition"
-                  >
-                    <ShoppingBag className="w-3.5 h-3.5" /> Buy
-                  </button>
                 </div>
 
                 {/* Body */}
