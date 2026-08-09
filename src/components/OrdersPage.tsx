@@ -49,6 +49,8 @@ export const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [emailLookup, setEmailLookup] = useState('');
+  const [debugEmailUsed, setDebugEmailUsed] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -77,6 +79,7 @@ export const OrdersPage: React.FC = () => {
     }
 
     if (emailToUse) {
+      setDebugEmailUsed(emailToUse);
       const list = await api.getOrders({ customer_email: emailToUse });
       setOrders(list);
     }
@@ -152,6 +155,38 @@ export const OrdersPage: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
+            {/* If no orders and no current user, allow lookup by email */}
+            {!currentUser && orders.length === 0 && (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                <div className="mb-2">Can't see your orders? Enter your email to look them up:</div>
+                <div className="flex gap-2">
+                  <input
+                    value={emailLookup}
+                    onChange={(e) => setEmailLookup(e.target.value)}
+                    placeholder="you@example.com"
+                    className="px-3 py-2 rounded-lg border border-stone-200 w-full text-sm"
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!emailLookup) return addToast('Enter email', 'Please type the email used to place the order', 'info');
+                      setLoading(true);
+                      try {
+                        const list = await api.getOrders({ customer_email: emailLookup.trim().toLowerCase() });
+                        setOrders(list);
+                        setDebugEmailUsed(emailLookup.trim().toLowerCase());
+                      } catch (e) {
+                        addToast('Lookup failed', 'Unable to fetch orders for that email', 'error');
+                      }
+                      setLoading(false);
+                    }}
+                    className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-sm"
+                  >
+                    Lookup
+                  </button>
+                </div>
+                {debugEmailUsed && <div className="mt-2 text-xs text-stone-600">Last lookup: {debugEmailUsed}</div>}
+              </div>
+            )}
             {orders.map((order) => {
               const adminInfo = adminProfiles[order.admin_id];
 
