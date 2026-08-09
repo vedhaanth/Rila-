@@ -3,6 +3,7 @@ services:
     name: relish-mart-erp
     env: node
     plan: free
+    branch: master
     buildCommand: npm install && npm run build
     startCommand: npm run start
     envVars:
