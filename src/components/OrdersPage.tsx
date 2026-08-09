@@ -159,7 +159,7 @@ export const OrdersPage: React.FC = () => {
             {!currentUser && orders.length === 0 && (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
                 <div className="mb-2">Can't see your orders? Enter your email to look them up:</div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     value={emailLookup}
                     onChange={(e) => setEmailLookup(e.target.value)}
@@ -179,7 +179,7 @@ export const OrdersPage: React.FC = () => {
                       }
                       setLoading(false);
                     }}
-                    className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-sm"
+                    className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-sm sm:w-auto w-full"
                   >
                     Lookup
                   </button>
@@ -234,7 +234,7 @@ export const OrdersPage: React.FC = () => {
                   {/* Items */}
                   <div className="p-4 divide-y divide-stone-100">
                     {(order.items || []).map((it) => (
-                      <div key={it.product_id} className="py-2.5 flex items-center justify-between gap-4 text-xs">
+                      <div key={it.product_id} className="py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
                         <div className="flex items-center gap-3">
                           <img
                             src={it.image}
@@ -247,7 +247,7 @@ export const OrdersPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="text-right font-mono font-bold text-stone-900">
+                        <div className="text-right font-mono font-bold text-stone-900 sm:min-w-[90px]">
                           {formatINR((it.price ?? 0) * (it.quantity ?? 1))}
                         </div>
                       </div>
@@ -281,155 +281,156 @@ export const OrdersPage: React.FC = () => {
                     ) : (
                       <div className="py-2">
                         {/* Stepper Progress Bar & Circles */}
-                        <div className="relative flex items-center justify-between max-w-2xl mx-auto px-2">
-                          {/* Background Track Line */}
-                          <div className="absolute top-4 left-6 right-6 h-1 bg-stone-200 -z-0 rounded-full" />
+                        <div className="relative overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+                          <div className="min-w-[600px] sm:min-w-0 flex items-center justify-between max-w-2xl mx-auto px-2">
+                            {/* Background Track Line */}
+                            <div className="absolute top-4 left-6 right-6 h-1 bg-stone-200 -z-0 rounded-full" />
 
-                          {/* Active Progress Fill Line */}
-                          <div
-                            className="absolute top-4 left-6 h-1 bg-gradient-to-r from-emerald-500 to-amber-500 transition-all duration-500 -z-0 rounded-full"
-                            style={{
-                              width: `${Math.min(100, Math.max(0, (getStatusIndex(order.status) / (STEPPER_STAGES.length - 1)) * 100))}%`,
-                              maxWidth: 'calc(100% - 3rem)',
-                            }}
-                          />
+                            {/* Active Progress Fill Line */}
+                            <div
+                              className="absolute top-4 left-6 h-1 bg-gradient-to-r from-emerald-500 to-amber-500 transition-all duration-500 -z-0 rounded-full"
+                              style={{
+                                width: `${Math.min(100, Math.max(0, (getStatusIndex(order.status) / (STEPPER_STAGES.length - 1)) * 100))}%`,
+                                maxWidth: 'calc(100% - 3rem)',
+                              }}
+                            />
 
-                          {STEPPER_STAGES.map((stage, idx) => {
-                            const currentIndex = getStatusIndex(order.status);
-                            const isCompleted = idx < currentIndex;
-                            const isCurrent = idx === currentIndex;
+                            {STEPPER_STAGES.map((stage, idx) => {
+                              const currentIndex = getStatusIndex(order.status);
+                              const isCompleted = idx < currentIndex;
+                              const isCurrent = idx === currentIndex;
 
-                            return (
-                              <div key={stage.status} className="flex flex-col items-center relative z-10 text-center">
-                                {/* Step Circle */}
-                                <div
-                                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 shadow-2xs ${isCompleted
-                                    ? 'bg-emerald-600 text-white ring-4 ring-emerald-100'
-                                    : isCurrent
-                                      ? 'bg-amber-600 text-white ring-4 ring-amber-100'
-                                      : 'bg-stone-100 text-stone-400 border border-stone-300'
-                                    }`}
-                                >
-                                  {isCompleted ? (
-                                    <Check className="w-4 h-4 stroke-[3]" />
-                                  ) : isCurrent ? (
-                                    <span className="w-2.5 h-2.5 bg-white rounded-full animate-pulse" />
-                                  ) : (
-                                    <span>{idx + 1}</span>
-                                  )}
+                              return (
+                                <div key={stage.status} className="flex flex-col items-center relative z-10 text-center min-w-[90px]">
+                                  {/* Step Circle */}
+                                  <div
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 shadow-2xs ${isCompleted
+                                      ? 'bg-emerald-600 text-white ring-4 ring-emerald-100'
+                                      : isCurrent
+                                        ? 'bg-amber-600 text-white ring-4 ring-amber-100'
+                                        : 'bg-stone-100 text-stone-400 border border-stone-300'
+                                      }`}
+                                  >
+                                    {isCompleted ? (
+                                      <Check className="w-4 h-4 stroke-[3]" />
+                                    ) : isCurrent ? (
+                                      <span className="w-2.5 h-2.5 bg-white rounded-full animate-pulse" />
+                                    ) : (
+                                      <span>{idx + 1}</span>
+                                    )}
+                                  </div>
+
+                                  {/* Step Label & Desc */}
+                                  <span className={`mt-2 text-[11px] font-bold ${isCompleted ? 'text-emerald-900' : isCurrent ? 'text-amber-900 font-extrabold' : 'text-stone-400'
+                                    }`}>
+                                    {stage.label}
+                                  </span>
+                                  <span className="text-[9px] text-stone-400 hidden sm:block max-w-[80px] leading-tight mt-0.5">
+                                    {stage.desc}
+                                  </span>
                                 </div>
-
-                                {/* Step Label & Desc */}
-                                <span className={`mt-2 text-[11px] font-bold ${isCompleted ? 'text-emerald-900' : isCurrent ? 'text-amber-900 font-extrabold' : 'text-stone-400'
-                                  }`}>
-                                  {stage.label}
-                                </span>
-                                <span className="text-[9px] text-stone-400 hidden sm:block max-w-[80px] leading-tight mt-0.5">
-                                  {stage.desc}
-                                </span>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
                     )}
 
-                    {/* Timeline Log Records */}
-                    <div className="mt-4 pt-3 border-t border-stone-200/60 flex flex-wrap gap-2 text-stone-600">
-                      <span className="font-semibold text-stone-700 uppercase text-[10px] tracking-wider block w-full">
-                        Status Log History
-                      </span>
-                      {order.timeline.map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-1.5 text-[11px] bg-white px-2.5 py-1 rounded-lg border border-stone-200 shadow-2xs">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                          <span className="font-semibold text-stone-800">{item.status}:</span>
-                          <span className="text-stone-500">{item.note || item.timestamp}</span>
-                          <span className="text-stone-400 text-[10px]">({item.timestamp})</span>
+                        {/* Timeline Log Records */}
+                        <div className="mt-4 pt-3 border-t border-stone-200/60 flex flex-wrap gap-2 text-stone-600">
+                          <span className="font-semibold text-stone-700 uppercase text-[10px] tracking-wider block w-full">
+                            Status Log History
+                          </span>
+                          {order.timeline.map((item, idx) => (
+                            <div key={idx} className="flex items-center gap-1.5 text-[11px] bg-white px-2.5 py-1 rounded-lg border border-stone-200 shadow-2xs">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                              <span className="font-semibold text-stone-800">{item.status}:</span>
+                              <span className="text-stone-500">{item.note || item.timestamp}</span>
+                              <span className="text-stone-400 text-[10px]">({item.timestamp})</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
                 </div>
-              );
+                  );
             })}
-          </div>
-        )
+                </div>
+              )
       ) : (
-        /* Wishlist View */
-        savedProducts.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-2xl border border-stone-200">
-            <Heart className="w-10 h-10 mx-auto text-stone-300 mb-2" />
-            <h3 className="font-bold text-stone-800 text-base">Your Wishlist is Empty</h3>
-            <p className="text-xs text-stone-500 mt-1">Explore our products and tap the heart icon to save items for later.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {savedProducts.map((p) => (
-              <div
-                key={p.product_id}
-                className="bg-white rounded-xl border border-stone-200 p-3 shadow-2xs flex flex-col justify-between"
-              >
-                <div>
-                  <div
-                    onClick={() => setSelectedProductForView(p)}
-                    className="cursor-pointer bg-[#FAF7F2] rounded-lg p-2 mb-2 flex items-center justify-center h-36 relative"
-                  >
-                    <img src={p.image} alt={p.product_name} className="max-h-28 w-auto object-contain" />
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleWishlist(p.product_id);
-                      }}
-                      className="absolute top-2 right-2 p-1.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 transition"
-                      title="Remove from Wishlist"
+            /* Wishlist View */
+            savedProducts.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-2xl border border-stone-200">
+              <Heart className="w-10 h-10 mx-auto text-stone-300 mb-2" />
+              <h3 className="font-bold text-stone-800 text-base">Your Wishlist is Empty</h3>
+              <p className="text-xs text-stone-500 mt-1">Explore our products and tap the heart icon to save items for later.</p>
+            </div>
+            ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {savedProducts.map((p) => (
+                <div
+                  key={p.product_id}
+                  className="bg-white rounded-xl border border-stone-200 p-3 shadow-2xs flex flex-col justify-between"
+                >
+                  <div>
+                    <div
+                      onClick={() => setSelectedProductForView(p)}
+                      className="cursor-pointer bg-[#FAF7F2] rounded-lg p-2 mb-2 flex items-center justify-center h-36 relative"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                      <img src={p.image} alt={p.product_name} className="max-h-28 w-auto object-contain" />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleWishlist(p.product_id);
+                        }}
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 transition"
+                        title="Remove from Wishlist"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <span className="text-[10px] font-medium text-stone-500 uppercase tracking-wider block">
+                      {p.category}
+                    </span>
+                    <h3
+                      onClick={() => setSelectedProductForView(p)}
+                      className="cursor-pointer font-bold text-xs text-stone-900 line-clamp-1 hover:text-teal-700 mt-0.5"
+                    >
+                      {p.product_name}
+                    </h3>
+                    <p className="text-[11px] text-stone-500 line-clamp-2 mt-0.5 mb-2">{p.description}</p>
                   </div>
 
-                  <span className="text-[10px] font-medium text-stone-500 uppercase tracking-wider block">
-                    {p.category}
-                  </span>
-                  <h3
-                    onClick={() => setSelectedProductForView(p)}
-                    className="cursor-pointer font-bold text-xs text-stone-900 line-clamp-1 hover:text-teal-700 mt-0.5"
-                  >
-                    {p.product_name}
-                  </h3>
-                  <p className="text-[11px] text-stone-500 line-clamp-2 mt-0.5 mb-2">{p.description}</p>
-                </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2 pt-1 border-t border-stone-100">
+                      <span className="text-sm font-bold text-stone-900 font-mono">{formatINR(p.price ?? 0)}</span>
+                      <div className="flex items-center gap-1 text-[10px] text-stone-500">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <span className="font-semibold text-stone-800">{p.rating}</span>
+                      </div>
+                    </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-2 pt-1 border-t border-stone-100">
-                    <span className="text-sm font-bold text-stone-900 font-mono">{formatINR(p.price ?? 0)}</span>
-                    <div className="flex items-center gap-1 text-[10px] text-stone-500">
-                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                      <span className="font-semibold text-stone-800">{p.rating}</span>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        onClick={() => addToCart(p, 1)}
+                        disabled={p.stock === 0}
+                        className="py-1.5 bg-teal-700 hover:bg-teal-800 disabled:bg-stone-200 text-white font-semibold text-xs rounded-lg transition flex items-center justify-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" /> Add To Bag
+                      </button>
+                      <button
+                        onClick={() => toggleWishlist(p.product_id)}
+                        className="py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium text-xs rounded-lg transition border border-stone-200 flex items-center justify-center gap-1"
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      onClick={() => addToCart(p, 1)}
-                      disabled={p.stock === 0}
-                      className="py-1.5 bg-teal-700 hover:bg-teal-800 disabled:bg-stone-200 text-white font-semibold text-xs rounded-lg transition flex items-center justify-center gap-1"
-                    >
-                      <Plus className="w-3 h-3" /> Add To Bag
-                    </button>
-                    <button
-                      onClick={() => toggleWishlist(p.product_id)}
-                      className="py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium text-xs rounded-lg transition border border-stone-200 flex items-center justify-center gap-1"
-                    >
-                      Remove
-                    </button>
-                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )
+              ))}
+            </div>
+            )
       )}
-    </div>
-  );
+          </div>
+        );
 };
 
