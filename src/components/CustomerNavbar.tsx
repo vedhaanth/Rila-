@@ -368,6 +368,12 @@ export const CustomerNavbar: React.FC<{
                     <PackageCheck className="w-4 h-4 text-amber-600" /> My Orders
                   </button>
                   <button
+                    onClick={() => { setActiveCustomerTab('account'); setIsProfileMenuOpen(false); }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-stone-50 flex items-center gap-2.5 text-sm font-medium text-stone-700 transition"
+                  >
+                    <User className="w-4 h-4 text-teal-600" /> My Profile
+                  </button>
+                  <button
                     onClick={() => {
                       if (confirm('Sign out from your account?')) {
                         logout();
@@ -476,6 +482,16 @@ export const CustomerNavbar: React.FC<{
                         className="w-full text-left px-3 py-2 rounded-2xl bg-stone-50 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition"
                       >
                         {cat.label}
+                        {currentUser && (
+                          <div className="mt-2">
+                            <button
+                              onClick={() => { setActiveCustomerTab('account'); setIsMobileMenuOpen(false); }}
+                              className="w-full inline-flex items-center justify-center rounded-2xl bg-stone-950 text-white py-3 text-sm font-semibold hover:bg-stone-800 transition"
+                            >
+                              <User className="w-4 h-4" /> View Profile
+                            </button>
+                          </div>
+                        )}
                       </button>
                     ))}
                   </div>
