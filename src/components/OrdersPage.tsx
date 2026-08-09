@@ -52,8 +52,32 @@ export const OrdersPage: React.FC = () => {
 
   const fetchData = async () => {
     setLoading(true);
+    // Prefer logged-in user email, fallback to persisted localStorage user email
+    let emailToUse: string | null = null;
     if (currentUser?.email) {
-      const list = await api.getOrders({ customer_email: currentUser.email });
+      emailToUse = currentUser.email;
+    } else {
+      try {
+        const saved = localStorage.getItem('rila_current_user');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.email) emailToUse = parsed.email;
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+      // Also support debug query param ?customer_email=... in the URL
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const qEmail = params.get('customer_email');
+        if (qEmail) emailToUse = qEmail;
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (emailToUse) {
+      const list = await api.getOrders({ customer_email: emailToUse });
       setOrders(list);
     }
     const allProducts = await api.getProducts();

@@ -532,7 +532,10 @@ export async function startServer(app: express.Express, shouldListen = true) {
         role: 'customer'
       });
       const customerObj = customerDoc?.toObject ? customerDoc.toObject() : customerDoc;
-      if (customerObj) delete customerObj.password;
+      if (customerObj) {
+        // Cast to any to satisfy TypeScript when deleting a non-optional property
+        delete (customerObj as any).password;
+      }
       res.json(customerObj);
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Unable to register customer' });
