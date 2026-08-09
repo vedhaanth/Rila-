@@ -153,7 +153,7 @@ export const QuickViewModal: React.FC = () => {
 
   return (
     <div id="quickview-modal-overlay" className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-amber-200/80 overflow-hidden relative my-6 animate-scale-up max-h-[90vh] flex flex-col">
+      <div className="bg-white w-full max-w-full sm:max-w-4xl rounded-3xl shadow-2xl border border-amber-200/80 overflow-hidden relative my-6 animate-scale-up max-h-[90vh] flex flex-col">
         {/* Modal Header Bar */}
         <div className="flex items-center justify-between px-6 py-4 bg-[#FAF8F5] border-b border-stone-200">
           <div className="flex items-center gap-2">

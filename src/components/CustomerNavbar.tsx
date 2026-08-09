@@ -219,6 +219,14 @@ export const CustomerNavbar: React.FC<{
         {/* Right Actions */}
         <div className="flex items-center gap-2 shrink-0">
 
+          {/* Mobile menu toggle */}
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="lg:hidden p-2 rounded-lg text-stone-700 hover:bg-stone-100"
+            aria-label="Open menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           {/* Search */}
           <div ref={searchRef} className="hidden md:flex items-center relative">
             <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -271,6 +279,68 @@ export const CustomerNavbar: React.FC<{
             )}
           </div>
 
+          {/* Mobile nav panel */}
+          {isMobileMenuOpen && (
+            <div className="fixed inset-0 z-50 lg:hidden">
+              <div className="absolute inset-0 bg-slate-950/60" onClick={() => setIsMobileMenuOpen(false)} />
+              <div className="absolute top-0 left-0 right-0 bg-white shadow-xl p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <img src={rilaLogo} alt="RILA Logo" className="h-8 w-auto rounded-md" />
+                    <span className="font-bold">RILA</span>
+                  </div>
+                  <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-md">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Search products..."
+                      value={searchQuery}
+                      onChange={(e) => { setSearchQuery(e.target.value); if (activeCustomerTab !== 'products') setActiveCustomerTab('products'); }}
+                      className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl bg-stone-50 border border-stone-200 text-stone-800 placeholder-stone-400"
+                    />
+                  </div>
+
+                  <nav className="flex flex-col gap-2">
+                    {navLinks.map((link) => (
+                      <button
+                        key={link.id}
+                        onClick={() => { setActiveCustomerTab(link.id as any); setIsMobileMenuOpen(false); }}
+                        className="w-full text-left px-3.5 py-2 rounded-lg text-sm font-medium text-stone-700 hover:bg-stone-50"
+                      >
+                        {link.label}
+                      </button>
+                    ))}
+                  </nav>
+
+                  <div className="pt-3 border-t border-stone-200 mt-3">
+                    <button
+                      onClick={() => {
+                        if (currentUser) {
+                          setActiveCustomerTab('orders');
+                        } else {
+                          setIsLoginModalOpen(true);
+                        }
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3.5 py-2 rounded-lg text-sm font-medium text-stone-700 hover:bg-stone-50"
+                    >
+                      {currentUser ? 'My Orders' : 'Sign in / Register'}
+                    </button>
+
+                    <div className="mt-2 flex items-center gap-2">
+                      <button onClick={() => { toggleTheme(); setIsMobileMenuOpen(false); }} className="px-3 py-2 rounded-lg bg-stone-100 text-sm">{theme === 'dark' ? 'Light' : 'Dark'}</button>
+                      <button onClick={() => { setIsEmailLogModalOpen(true); setIsMobileMenuOpen(false); }} className="px-3 py-2 rounded-lg bg-stone-100 text-sm">Email Logs</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           {/* Profile */}
           {currentUser ? (
             <div className="relative" ref={profileRef}>
