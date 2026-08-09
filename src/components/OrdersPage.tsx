@@ -118,7 +118,15 @@ export const OrdersPage: React.FC = () => {
         address: profileAddress,
         ...(profilePassword ? { password: profilePassword } : {})
       });
-      setCurrentUser({ ...currentUser, ...updated });
+
+      // normalize address fields returned by backend (some responses may use shipping_address or delivery_address)
+      const normalizedAddress = (updated as any).address || (updated as any).shipping_address || (updated as any).delivery_address || profileAddress || currentUser.address;
+      const normalizedUser = {
+        ...currentUser,
+        ...updated,
+        address: normalizedAddress
+      } as typeof currentUser;
+      setCurrentUser(normalizedUser);
       setProfilePassword('');
       addToast('Profile Updated', 'Your customer profile has been saved successfully.');
     } catch (err: any) {
