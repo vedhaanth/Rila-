@@ -41,6 +41,110 @@ import AdminModel from '../src/models/Admin';
 import CustomerModel from '../src/models/Customer';
 import EmployeeModel from '../src/models/Employee';
 
+type FallbackState = {
+  admins: any[];
+  products: any[];
+  orders: any[];
+  bills: any[];
+  expenses: any[];
+  suppliers: any[];
+  feedback: any[];
+  customers: any[];
+  employees: any[];
+  emailLogs: any[];
+};
+
+function createFallbackState(): FallbackState {
+  const now = new Date().toISOString();
+  const admin1Password = hashPassword('admin123');
+  const admin2Password = hashPassword('admin123');
+
+  return {
+    admins: [
+      {
+        admin_id: 'admin1',
+        admin_name: 'Apex Tech Admin',
+        email: 'admin1@smartretail.com',
+        password: admin1Password,
+        business_name: 'Apex Tech & Electronics',
+        phone: '+1 234 567 8900',
+        gstin: '27AADCB2230M1Z2',
+        address: '123 Tech Park, Silicon Valley, CA',
+        categories: ['Electronics', 'Gadgets'],
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        admin_id: 'admin2',
+        admin_name: 'Vogue Living Admin',
+        email: 'admin2@smartretail.com',
+        password: admin2Password,
+        business_name: 'Vogue & Living Retail',
+        phone: '+1 987 654 3210',
+        gstin: '27AADCB2230M1Z3',
+        address: '456 Fashion Ave, New York, NY',
+        categories: ['Clothing', 'Home'],
+        createdAt: now,
+        updatedAt: now
+      }
+    ],
+    products: [
+      {
+        product_id: 'PROD-1001',
+        product_name: 'Classic Ghee Laddu',
+        category: 'Pure Ghee Sweets',
+        image: 'https://images.unsplash.com/photo-1606312617438-4a2f2f0f4c4d',
+        price: 320,
+        original_price: 380,
+        discount: 15,
+        stock: 24,
+        admin_owner: 'admin1',
+        description: 'Rich and aromatic laddus made with premium A2 desi ghee.',
+        rating: 4.8,
+        reviews_count: 38,
+        featured: true,
+        specifications: { weight: '250g' },
+        createdAt: now
+      },
+      {
+        product_id: 'PROD-1002',
+        product_name: 'Kaju Katli Deluxe',
+        category: 'Kaju & Dry Fruit Mithai',
+        image: 'https://images.unsplash.com/photo-1606312617438-4a2f2f0f4c4d',
+        price: 460,
+        original_price: 520,
+        discount: 12,
+        stock: 18,
+        admin_owner: 'admin2',
+        description: 'Silky kaju katli with exquisite dry fruit finish.',
+        rating: 4.7,
+        reviews_count: 22,
+        featured: true,
+        specifications: { weight: '300g' },
+        createdAt: now
+      }
+    ],
+    orders: [],
+    bills: [],
+    expenses: [],
+    suppliers: [],
+    feedback: [],
+    customers: [],
+    employees: [],
+    emailLogs: []
+  };
+}
+
+const fallbackState = createFallbackState();
+
+function isFallbackMode(lastDbError: string | null) {
+  return Boolean(lastDbError) || mongoose.connection.readyState !== 1;
+}
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
+}
+
 async function seedDatabase() {
   const db = mongoose.connection.db;
   if (!db) return;
@@ -96,6 +200,20 @@ async function seedDatabase() {
 
 
 async function generateUniqueCustomerId() {
+  // If MongoDB is not connected, use fallbackState to avoid blocking operations
+  if (mongoose.connection.readyState !== 1) {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const candidate = `CUST-${Date.now().toString().slice(-5)}${Math.floor(1000 + Math.random() * 9000)}`;
+      const exists = fallbackState.customers.find((c) => c.user_id === candidate);
+      if (!exists) return candidate;
+    }
+
+    const fallback = `CUST-${randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`;
+    const existsFallback = fallbackState.customers.find((c) => c.user_id === fallback);
+    if (existsFallback) return generateUniqueCustomerId();
+    return fallback;
+  }
+
   for (let attempt = 0; attempt < 10; attempt += 1) {
     const candidate = `CUST-${Date.now().toString().slice(-5)}${Math.floor(1000 + Math.random() * 9000)}`;
     const existing = await CustomerModel.findOne({ user_id: candidate }).select('_id').lean();
@@ -106,6 +224,36 @@ async function generateUniqueCustomerId() {
   const existingFallback = await CustomerModel.findOne({ user_id: fallback }).select('_id').lean();
   if (existingFallback) return generateUniqueCustomerId();
   return fallback;
+}
+
+// Safely upsert a customer by email, retrying on duplicate user_id collisions (E11000)
+async function safeUpsertCustomerByEmail(normalizedEmail: string, setData: any) {
+  const MAX_ATTEMPTS = 6;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const candidate = await generateUniqueCustomerId();
+    try {
+      const doc = await CustomerModel.findOneAndUpdate(
+        { email: normalizedEmail },
+        { $set: setData, $setOnInsert: { user_id: candidate } },
+        { upsert: true, returnDocument: 'after' }
+      );
+      return doc;
+    } catch (err: any) {
+      // Duplicate key on user_id — regenerate and retry
+      if (err && (err.code === 11000 || /E11000/i.test(err.message || '')) && /user_id/i.test(err.message || '')) {
+        // small delay to reduce race window
+        await new Promise((r) => setTimeout(r, 30 + Math.floor(Math.random() * 40)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  // Final attempt without user_id to let DB assign (shouldn't typically occur)
+  return CustomerModel.findOneAndUpdate(
+    { email: normalizedEmail },
+    { $set: setData },
+    { upsert: true, returnDocument: 'after' }
+  );
 }
 
 export async function startServer(app: express.Express, shouldListen = true) {
@@ -147,7 +295,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
     body: string,
     type: EmailLog['type']
   ) {
-    const log = new EmailLogModel({
+    const logObj = {
       log_id: `EML-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       recipient,
       subject,
@@ -155,7 +303,14 @@ export async function startServer(app: express.Express, shouldListen = true) {
       type,
       sent_at: new Date().toISOString(),
       status: 'Sent'
-    });
+    } as any;
+
+    if (isFallbackMode(lastDbError)) {
+      fallbackState.emailLogs.push(logObj);
+      return clone(logObj);
+    }
+
+    const log = new EmailLogModel(logObj);
     await log.save();
     return log;
   }
@@ -175,6 +330,16 @@ export async function startServer(app: express.Express, shouldListen = true) {
       }
       const normalizedEmail = String(email).trim().toLowerCase();
       const rawPassword = String(password);
+
+      if (isFallbackMode(lastDbError)) {
+        const fallbackAdmin = fallbackState.admins.find((admin) => admin.email === normalizedEmail);
+        if (fallbackAdmin && verifyPassword(rawPassword, fallbackAdmin.password)) {
+          const { password: _, ...adminResponse } = fallbackAdmin;
+          return res.json({ ...adminResponse, user_type: 'admin' });
+        }
+
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
 
       // Check if Admin
       const admin = await AdminModel.findOne({ email: normalizedEmail });
@@ -208,6 +373,12 @@ export async function startServer(app: express.Express, shouldListen = true) {
       if (admin_id && admin_id !== 'all') {
         filter.admin_id = admin_id;
       }
+      if (isFallbackMode(lastDbError)) {
+        let items = clone(fallbackState.employees);
+        if (filter.admin_id) items = items.filter((e) => e.admin_id === filter.admin_id);
+        return res.json(items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      }
+
       const employees = await EmployeeModel.find(filter).select('-password').sort({ createdAt: -1 });
       res.json(employees);
     } catch (err: any) {
@@ -223,6 +394,25 @@ export async function startServer(app: express.Express, shouldListen = true) {
       }
 
       const normalizedEmail = String(email).trim().toLowerCase();
+      if (isFallbackMode(lastDbError)) {
+        const exists = fallbackState.employees.find((e) => e.email === normalizedEmail);
+        if (exists) return res.status(400).json({ error: 'An employee with this email already exists' });
+        const hashedPassword = hashPassword(String(password).trim());
+        const newEmp = {
+          employee_id: `EMP-${Date.now().toString().slice(-8)}`,
+          admin_id,
+          name: String(name).trim(),
+          email: normalizedEmail,
+          password: hashedPassword,
+          role: role || 'order_manager',
+          phone: String(phone || '').trim(),
+          createdAt: new Date().toISOString()
+        };
+        fallbackState.employees.push(newEmp);
+        const { password: _, ...out } = newEmp as any;
+        return res.status(201).json(out);
+      }
+
       const existing = await EmployeeModel.findOne({ email: normalizedEmail });
       if (existing) {
         return res.status(400).json({ error: 'An employee with this email already exists' });
@@ -259,6 +449,13 @@ export async function startServer(app: express.Express, shouldListen = true) {
       } else {
         delete updateData.password; // Don't update password field if empty
       }
+      if (isFallbackMode(lastDbError)) {
+        const emp = fallbackState.employees.find((e) => e.employee_id === req.params.id);
+        if (!emp) return res.status(404).json({ error: 'Employee not found' });
+        Object.assign(emp, updateData, { updatedAt: new Date().toISOString() });
+        const { password: _, ...out } = emp as any;
+        return res.json(out);
+      }
 
       const employee = await EmployeeModel.findOneAndUpdate(
         { employee_id: req.params.id },
@@ -277,6 +474,13 @@ export async function startServer(app: express.Express, shouldListen = true) {
 
   app.delete('/api/employees/:id', async (req, res) => {
     try {
+      if (isFallbackMode(lastDbError)) {
+        const initialLen = fallbackState.employees.length;
+        fallbackState.employees = fallbackState.employees.filter((e) => e.employee_id !== req.params.id);
+        if (fallbackState.employees.length === initialLen) return res.status(404).json({ error: 'Employee not found' });
+        return res.json({ success: true, message: 'Employee deleted' });
+      }
+
       const result = await EmployeeModel.deleteOne({ employee_id: req.params.id });
       if (result.deletedCount === 0) {
         return res.status(404).json({ error: 'Employee not found' });
@@ -294,30 +498,42 @@ export async function startServer(app: express.Express, shouldListen = true) {
         return res.status(400).json({ error: 'Name, email, and password are required' });
       }
       const normalizedEmail = String(email).trim().toLowerCase();
+      if (isFallbackMode(lastDbError)) {
+        const exists = fallbackState.customers.find((c) => c.email === normalizedEmail);
+        if (exists) return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
+        const generatedUserId = await generateUniqueCustomerId();
+        const hashedPassword = hashPassword(String(password).trim());
+        const newCust = {
+          user_id: generatedUserId,
+          name: String(name).trim(),
+          phone: String(phone || '').trim(),
+          address: String(address || '').trim(),
+          email: normalizedEmail,
+          password: hashedPassword,
+          role: 'customer',
+          createdAt: new Date().toISOString()
+        };
+        fallbackState.customers.push(newCust);
+        const { password: _, ...out } = newCust as any;
+        return res.json(out);
+      }
+
       const existing = await CustomerModel.findOne({ email: normalizedEmail });
       if (existing) {
         return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
       }
-      const generatedUserId = await generateUniqueCustomerId();
       const hashedPassword = hashPassword(String(password).trim());
-      const customer = await CustomerModel.findOneAndUpdate(
-        { email: normalizedEmail },
-        {
-          $set: {
-            name: String(name).trim(),
-            phone: String(phone || '').trim(),
-            address: String(address || '').trim(),
-            email: normalizedEmail,
-            password: hashedPassword
-          },
-          $setOnInsert: {
-            user_id: generatedUserId,
-            role: 'customer'
-          }
-        },
-        { upsert: true, returnDocument: 'after' }
-      ).select('-password');
-      res.json(customer);
+      const customerDoc = await safeUpsertCustomerByEmail(normalizedEmail, {
+        name: String(name).trim(),
+        phone: String(phone || '').trim(),
+        address: String(address || '').trim(),
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: 'customer'
+      });
+      const customerObj = customerDoc?.toObject ? customerDoc.toObject() : customerDoc;
+      if (customerObj) delete customerObj.password;
+      res.json(customerObj);
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Unable to register customer' });
     }
@@ -330,6 +546,15 @@ export async function startServer(app: express.Express, shouldListen = true) {
         return res.status(400).json({ error: 'Email and password are required' });
       }
       const normalizedEmail = String(email).trim().toLowerCase();
+      if (isFallbackMode(lastDbError)) {
+        const customer = fallbackState.customers.find((c) => c.email === normalizedEmail);
+        if (!customer) return res.status(401).json({ error: 'Customer account not found' });
+        const match = verifyPassword(String(password), customer.password);
+        if (!match) return res.status(401).json({ error: 'Invalid email or password' });
+        const { password: _, ...out } = customer as any;
+        return res.json(out);
+      }
+
       const customer = await CustomerModel.findOne({ email: normalizedEmail });
       if (!customer) {
         return res.status(401).json({ error: 'Customer account not found' });
@@ -347,6 +572,9 @@ export async function startServer(app: express.Express, shouldListen = true) {
 
   app.get('/api/admins', async (req, res) => {
     try {
+      if (isFallbackMode(lastDbError)) {
+        return res.json(clone(fallbackState.admins));
+      }
       const admins = await AdminModel.find();
       res.json(admins);
     } catch (err: any) {
@@ -358,6 +586,21 @@ export async function startServer(app: express.Express, shouldListen = true) {
     try {
       const { admin_id } = req.params;
       const updateData = req.body;
+      if (isFallbackMode(lastDbError)) {
+        const existingAdmin = fallbackState.admins.find((admin) => admin.admin_id === admin_id);
+        const updatedAdmin = {
+          ...(existingAdmin || { admin_id, email: '', password: hashPassword('admin123') }),
+          ...updateData,
+          admin_id,
+          updatedAt: new Date().toISOString()
+        };
+        if (!existingAdmin) {
+          fallbackState.admins.push(updatedAdmin);
+        } else {
+          Object.assign(existingAdmin, updatedAdmin);
+        }
+        return res.json(clone(updatedAdmin));
+      }
       const admin = await AdminModel.findOneAndUpdate(
         { admin_id },
         updateData,
@@ -371,6 +614,24 @@ export async function startServer(app: express.Express, shouldListen = true) {
 
   app.get('/api/products', async (req, res) => {
     try {
+      if (isFallbackMode(lastDbError)) {
+        const { admin_owner, category, search } = req.query;
+        let products = clone(fallbackState.products);
+
+        if (admin_owner && admin_owner !== 'all') {
+          products = products.filter((product) => product.admin_owner === admin_owner);
+        }
+        if (category && category !== 'All') {
+          products = products.filter((product) => product.category.toLowerCase() === String(category).toLowerCase());
+        }
+        if (search) {
+          const q = String(search).toLowerCase();
+          products = products.filter((product) => `${product.product_name} ${product.description} ${product.category}`.toLowerCase().includes(q));
+        }
+
+        return res.json(products.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      }
+
       const { admin_owner, category, search } = req.query;
       const filter: any = {};
 
@@ -398,6 +659,13 @@ export async function startServer(app: express.Express, shouldListen = true) {
 
   app.get('/api/products/:id', async (req, res) => {
     try {
+      if (isFallbackMode(lastDbError)) {
+        const product = fallbackState.products.find((item) => item.product_id === req.params.id);
+        if (!product) {
+          return res.status(404).json({ error: 'Product not found' });
+        }
+        return res.json(clone(product));
+      }
       const product = await ProductModel.findOne({ product_id: req.params.id });
       if (!product) {
         return res.status(404).json({ error: 'Product not found' });
@@ -413,6 +681,28 @@ export async function startServer(app: express.Express, shouldListen = true) {
       const pData = req.body;
       if (!pData.product_name || !pData.price || !pData.admin_owner) {
         return res.status(400).json({ error: 'Missing required product fields' });
+      }
+
+      if (isFallbackMode(lastDbError)) {
+        const newProduct = {
+          product_id: `PROD-${Date.now().toString().slice(-4)}`,
+          product_name: pData.product_name,
+          category: pData.category || 'General',
+          image: pData.image || '',
+          price: Number(pData.price),
+          original_price: Number(pData.original_price || pData.price),
+          discount: Number(pData.discount || 0),
+          stock: Number(pData.stock || 0),
+          admin_owner: pData.admin_owner as AdminId,
+          description: pData.description || '',
+          rating: 0,
+          reviews_count: 0,
+          featured: Boolean(pData.featured),
+          specifications: pData.specifications || {},
+          createdAt: new Date().toISOString()
+        };
+        fallbackState.products.push(newProduct);
+        return res.status(201).json(clone(newProduct));
       }
 
       const newProduct = new ProductModel({
@@ -445,6 +735,15 @@ export async function startServer(app: express.Express, shouldListen = true) {
       if (updateData.price !== undefined) updateData.price = Number(updateData.price);
       if (updateData.stock !== undefined) updateData.stock = Number(updateData.stock);
 
+      if (isFallbackMode(lastDbError)) {
+        const product = fallbackState.products.find((item) => item.product_id === req.params.id);
+        if (!product) {
+          return res.status(404).json({ error: 'Product not found' });
+        }
+        Object.assign(product, updateData, { updatedAt: new Date().toISOString() });
+        return res.json(clone(product));
+      }
+
       const product = await ProductModel.findOneAndUpdate(
         { product_id: req.params.id },
         updateData,
@@ -461,6 +760,14 @@ export async function startServer(app: express.Express, shouldListen = true) {
 
   app.delete('/api/products/:id', async (req, res) => {
     try {
+      if (isFallbackMode(lastDbError)) {
+        const initialLength = fallbackState.products.length;
+        fallbackState.products = fallbackState.products.filter((item) => item.product_id !== req.params.id);
+        if (fallbackState.products.length === initialLength) {
+          return res.status(404).json({ error: 'Product not found' });
+        }
+        return res.json({ success: true, message: 'Product deleted' });
+      }
       const result = await ProductModel.deleteOne({ product_id: req.params.id });
       if (result.deletedCount === 0) {
         return res.status(404).json({ error: 'Product not found' });
@@ -491,6 +798,12 @@ export async function startServer(app: express.Express, shouldListen = true) {
       }
       if (customer_email) {
         filter.customer_email = new RegExp(`^${customer_email}$`, 'i');
+      }
+      if (isFallbackMode(lastDbError)) {
+        let orders = clone(fallbackState.orders || []);
+        if (filter.admin_id) orders = orders.filter((o) => o.admin_id === filter.admin_id);
+        if (customer_email) orders = orders.filter((o) => new RegExp(`^${String(customer_email)}`).test(o.customer_email));
+        return res.json(orders.sort((a, b) => new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime()));
       }
 
       const orders = await OrderModel.find(filter).sort({ createdAt: -1 });
@@ -530,11 +843,132 @@ export async function startServer(app: express.Express, shouldListen = true) {
         itemsByAdmin[owner].push(item);
       }
 
-      for (const it of items) {
-        await ProductModel.updateOne(
-          { product_id: it.product_id },
-          { $inc: { stock: -it.quantity } }
-        );
+      if (isFallbackMode(lastDbError)) {
+        // update stock in fallback products
+        for (const it of items) {
+          const prod = fallbackState.products.find((p) => p.product_id === it.product_id);
+          if (prod) prod.stock = Math.max(0, Number(prod.stock) - Number(it.quantity));
+        }
+
+        let orderIndex = 0;
+        for (const [adminId, adminItems] of Object.entries(itemsByAdmin)) {
+          const adminObj = fallbackState.admins.find((a) => a.admin_id === adminId) || { email: `${adminId}@rilastore.com` };
+          const adminEmail = adminObj.email;
+
+          const subtotal = (adminItems as any[]).reduce((acc: number, it: any) => acc + it.price * it.quantity, 0);
+          const gst_amount = Number((subtotal * 0.05).toFixed(2));
+          const total_amount = Number((subtotal + gst_amount).toFixed(2));
+
+          const suffix = `${Date.now().toString().slice(-4)}${orderIndex}`;
+          const subOrderId = `ORD-${suffix}`;
+          const trackingNo = `TRK-${Math.floor(100000 + Math.random() * 900000)}`;
+          orderIndex++;
+
+          const resolvedCustomerId = customer_id?.trim() || (await generateUniqueCustomerId());
+          // upsert customer in fallback
+          let customerUser = fallbackState.customers.find((c) => c.email === String(customer_email).trim().toLowerCase());
+          if (!customerUser) {
+            customerUser = {
+              user_id: resolvedCustomerId,
+              name: customer_name,
+              email: String(customer_email).trim().toLowerCase(),
+              phone: customer_phone,
+              address: shipping_address,
+              role: 'customer',
+              createdAt: new Date().toISOString()
+            } as any;
+            fallbackState.customers.push(customerUser);
+          }
+
+          const isCashOnDelivery = String(payment_method).trim() === 'Cash on Delivery';
+          const newOrder = {
+            order_id: subOrderId,
+            master_order_id: masterOrderId,
+            customer_id: customerUser.user_id,
+            customer_name,
+            customer_email,
+            customer_phone,
+            shipping_address,
+            items: adminItems,
+            subtotal,
+            gst_amount,
+            discount_amount: 0,
+            total_amount,
+            admin_id: adminId,
+            status: 'Pending',
+            payment_method: payment_method || 'UPI',
+            payment_status: isCashOnDelivery ? 'Pending' : 'Paid',
+            created_at: new Date().toISOString(),
+            tracking_number: trackingNo,
+            timeline: [
+              {
+                status: 'Pending',
+                timestamp: new Date().toLocaleString(),
+                note: isCashOnDelivery ? 'Order placed. Payment will be collected on delivery.' : 'Order placed & payment verified'
+              }
+            ]
+          } as any;
+
+          fallbackState.orders.push(newOrder);
+          createdOrders.push(newOrder);
+
+          const bill = {
+            bill_id: `BILL-${suffix}`,
+            invoice_number: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            bill_type: 'Online',
+            master_order_id: masterOrderId,
+            order_id: subOrderId,
+            customer_id: newOrder.customer_id,
+            customer_name: newOrder.customer_name,
+            customer_phone: newOrder.customer_phone,
+            customer_email: newOrder.customer_email,
+            shipping_address: newOrder.shipping_address,
+            products: (adminItems as any[]).map((i) => ({
+              product_id: i.product_id,
+              product_name: i.product_name,
+              quantity: i.quantity,
+              price: i.price,
+              discount: 0,
+              total: i.price * i.quantity
+            })),
+            items: (adminItems as any[]).map((i) => ({
+              product_id: i.product_id,
+              product_name: i.product_name,
+              quantity: i.quantity,
+              price: i.price,
+              discount: 0,
+              total: i.price * i.quantity
+            })),
+            subtotal,
+            tax_gst: gst_amount,
+            discount_total: 0,
+            grand_total: total_amount,
+            payment_method: newOrder.payment_method,
+            payment_status: isCashOnDelivery ? 'Pending' : 'Paid',
+            admin_id: adminId,
+            created_at: new Date().toISOString(),
+            notes: isCashOnDelivery ? `COD Checkout Order #${subOrderId}` : `Online Checkout Order #${subOrderId}`
+          } as any;
+
+          fallbackState.bills.push(bill);
+          createdBills.push(bill);
+
+          triggerEmail(
+            adminEmail,
+            `🚨 New Order Alert #${subOrderId}`,
+            `You have received order #${subOrderId} from ${newOrder.customer_name} for ₹${total_amount.toFixed(2)}. Log into ERP to process and pack this shipment.`,
+            'Admin Order Alert'
+          ).catch(console.error);
+        }
+
+        triggerEmail(
+          customer_email,
+          `Order Confirmation #${masterOrderId} - RILA`,
+          `Thank you for your order #${masterOrderId}! Your items will be processed shortly. Track progress directly in your customer dashboard.`,
+          'Order Confirmation'
+        ).catch(console.error);
+
+        return res.status(201).json({ success: true, master_order_id: masterOrderId, orders: createdOrders, bills: createdBills });
       }
 
       let orderIndex = 0;
@@ -552,22 +986,13 @@ export async function startServer(app: express.Express, shouldListen = true) {
         orderIndex++;
 
         const resolvedCustomerId = customer_id?.trim() || (await generateUniqueCustomerId());
-        const customerUser = await CustomerModel.findOneAndUpdate(
-          { email: customer_email.trim().toLowerCase() },
-          {
-            $set: {
-              name: customer_name,
-              phone: customer_phone,
-              address: shipping_address,
-              email: customer_email.trim().toLowerCase(),
-              role: 'customer'
-            },
-            $setOnInsert: {
-              user_id: resolvedCustomerId
-            }
-          },
-          { upsert: true, returnDocument: 'after' }
-        );
+        const customerUser = await safeUpsertCustomerByEmail(customer_email.trim().toLowerCase(), {
+          name: customer_name,
+          phone: customer_phone,
+          address: shipping_address,
+          email: customer_email.trim().toLowerCase(),
+          role: 'customer'
+        });
 
         const isCashOnDelivery = String(payment_method).trim() === 'Cash on Delivery';
         const newOrder = new OrderModel({
@@ -721,6 +1146,12 @@ export async function startServer(app: express.Express, shouldListen = true) {
       if (admin_id && admin_id !== 'all') {
         filter.admin_id = admin_id;
       }
+      if (isFallbackMode(lastDbError)) {
+        let bills = clone(fallbackState.bills || []);
+        if (filter.admin_id) bills = bills.filter((b) => b.admin_id === filter.admin_id);
+        return res.json(bills.sort((a, b) => new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime()));
+      }
+
       const bills = await BillModel.find(filter).sort({ createdAt: -1 });
       res.json(bills);
     } catch (err: any) {
@@ -762,6 +1193,55 @@ export async function startServer(app: express.Express, shouldListen = true) {
       const grand_total = Number((discountedSubtotal + tax_gst).toFixed(2));
 
       const invoiceNo = `POS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      if (isFallbackMode(lastDbError)) {
+        for (const it of products) {
+          const p = fallbackState.products.find((x) => x.product_id === it.product_id);
+          if (p) p.stock = Math.max(0, Number(p.stock) - Number(it.quantity));
+        }
+
+        const billProducts = products.map((p: any) => ({
+          product_id: p.product_id,
+          product_name: p.product_name,
+          quantity: Number(p.quantity),
+          price: Number(p.price),
+          discount: Number(p.discount || 0),
+          total: (Number(p.price) - Number(p.discount || 0)) * Number(p.quantity)
+        }));
+
+        const newBill = {
+          bill_id: `BILL-${Date.now().toString().slice(-5)}`,
+          invoice_number: invoiceNo,
+          bill_type: 'Manual',
+          customer_name,
+          customer_phone,
+          customer_email: customer_email || '',
+          products: billProducts,
+          items: billProducts,
+          subtotal,
+          tax_gst,
+          discount_total: flatDisc,
+          grand_total,
+          payment_method: payment_method || 'Cash',
+          payment_status: 'Paid',
+          admin_id: admin_id,
+          created_at: new Date().toISOString(),
+          notes: notes || 'Vyapar Retail Counter POS Bill'
+        } as any;
+
+        fallbackState.bills.push(newBill);
+
+        if (customer_email) {
+          await triggerEmail(
+            customer_email,
+            `Tax Invoice #${invoiceNo} - ${adminBusinessName}`,
+            `Thank you for shopping with us! Attached is your GST Tax Invoice #${invoiceNo}.`,
+            'Invoice'
+          );
+        }
+
+        return res.status(201).json(newBill);
+      }
 
       for (const it of products) {
         await ProductModel.updateOne(
@@ -1072,6 +1552,15 @@ export async function startServer(app: express.Express, shouldListen = true) {
       if (email) {
         filter.email = new RegExp(`^${String(email).trim()}$`, 'i');
       }
+      if (isFallbackMode(lastDbError)) {
+        let items = clone(fallbackState.customers || []);
+        if (filter.email) {
+          const emailRegex = filter.email instanceof RegExp ? filter.email : new RegExp(String(filter.email));
+          items = items.filter((c) => emailRegex.test(String(c.email)));
+        }
+        return res.json(items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      }
+
       const customers = await CustomerModel.find(filter).sort({ createdAt: -1 });
       res.json(customers);
     } catch (err: any) {
@@ -1081,6 +1570,9 @@ export async function startServer(app: express.Express, shouldListen = true) {
 
   app.get('/api/email-logs', async (req, res) => {
     try {
+      if (isFallbackMode(lastDbError)) {
+        return res.json((fallbackState.emailLogs || []).slice().sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime()));
+      }
       const logs = await EmailLogModel.find().sort({ createdAt: -1 });
       res.json(logs);
     } catch (err: any) {
