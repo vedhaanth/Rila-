@@ -40,7 +40,8 @@ export interface Product {
   product_id: string;
   product_name: string;
   category: string;
-  image: string;
+  image?: string;
+  unit?: string;
   price: number;
   original_price: number;
   discount: number; // percentage
@@ -79,6 +80,8 @@ export interface Order {
   customer_name: string;
   customer_email: string;
   customer_phone: string;
+  // legacy alias used in some places
+  delivery_address?: string;
   shipping_address: string;
   items: OrderItem[];
   subtotal: number;
@@ -88,6 +91,8 @@ export interface Order {
   admin_id: AdminId; // The admin who processes this sub-order
   status: OrderStatus;
   payment_method: 'UPI' | 'Credit Card' | 'Debit Card' | 'Net Banking' | 'Cash on Delivery' | 'Cash';
+  // legacy alias
+  payment_mode?: string;
   payment_status: 'Paid' | 'Pending';
   created_at: string;
   tracking_number: string;
@@ -187,6 +192,9 @@ export interface Supplier {
   email: string;
   address: string;
   company_name?: string;
+  // alternate / legacy fields used across components
+  company?: string;
+  name?: string;
   gst_number?: string;
   products_supplied?: string[];
   outstanding_balance?: number;

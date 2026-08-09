@@ -216,7 +216,7 @@ export const AdminDashboard: React.FC = () => {
                     cx="50%"
                     cy="50%"
                     outerRadius={75}
-                    label={({ category }) => category}
+                    label={(entry: any) => entry?.category}
                   >
                     {pnlReport.expense_breakdown.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

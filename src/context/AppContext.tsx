@@ -21,7 +21,7 @@ interface AppContextType {
   activeCustomerTab: 'home' | 'products' | 'about' | 'contact' | 'feedback' | 'orders' | 'account' | 'login';
   setActiveCustomerTab: (tab: 'home' | 'products' | 'about' | 'contact' | 'feedback' | 'orders' | 'account' | 'login') => void;
   activeAdminTab: 'dashboard' | 'products' | 'orders' | 'inventory' | 'billing' | 'expenses' | 'reports' | 'customers' | 'employees' | 'settings';
-  setActiveAdminTab: (tab: 'dashboard' | 'products' | 'orders' | 'inventory' | 'billing' | 'expenses' | 'reports' | 'customers' | 'employees' | 'settings') => void;
+  setActiveAdminTab: React.Dispatch<React.SetStateAction<'dashboard' | 'products' | 'orders' | 'inventory' | 'billing' | 'expenses' | 'reports' | 'customers' | 'employees' | 'settings'>>;
 
   // Active Admin Selection
   activeAdminId: AdminId;
