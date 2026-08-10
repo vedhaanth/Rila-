@@ -134,7 +134,7 @@ export const CustomerNavbar: React.FC<{
       </div>
 
       {/* Main navbar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pr-6 sm:pr-8 lg:pr-10 py-3 flex items-center justify-between gap-4 overflow-visible">
 
         {/* Logo */}
         <button
@@ -407,7 +407,7 @@ export const CustomerNavbar: React.FC<{
           </button>
           <button
             onClick={() => setIsCartOpen(true)}
-            className="relative flex items-center gap-2 px-3 h-10 bg-stone-950 hover:bg-stone-800 text-white rounded-xl transition group shadow-[0_8px_24px_-12px_rgba(0,0,0,0.45)] shrink-0 min-w-[44px] self-center"
+            className="relative z-50 flex items-center gap-2 px-3 h-10 bg-stone-950 hover:bg-stone-800 text-white rounded-xl transition group shadow-[0_8px_24px_-12px_rgba(0,0,0,0.45)] shrink-0 min-w-[44px] self-center"
             title="View Cart"
             aria-label="View Cart"
           >
