@@ -16,9 +16,15 @@ export function resolveApiBase(
   const hostname = context.hostname || '';
   const origin = context.origin || '';
 
+  // Use current origin in production if no explicit API URL is configured.
+  if (origin) {
+    return `${origin}/api`;
+  }
+
+  // Fallback to Vercel or other hosted URLs if origin isn't available.
   if (hostname.includes('vercel.app') || hostname.includes('vercel.com')) {
     return 'https://rila.onrender.com/api';
   }
 
-  return origin ? `${origin}/api` : '/api';
+  return '/api';
 }
