@@ -572,6 +572,46 @@ export async function startServer(app: express.Express, shouldListen = true) {
     }
   });
 
+  app.put('/api/customers/:id', async (req, res) => {
+    try {
+      const updateData: any = { ...req.body };
+      if (updateData.email) {
+        updateData.email = String(updateData.email).trim().toLowerCase();
+      }
+      if (updateData.password && updateData.password.trim()) {
+        updateData.password = hashPassword(String(updateData.password).trim());
+      } else {
+        delete updateData.password;
+      }
+
+      if (isFallbackMode(lastDbError)) {
+        const customer = fallbackState.customers.find((c) => c.user_id === req.params.id);
+        if (!customer) {
+          return res.status(404).json({ error: 'Customer not found' });
+        }
+        Object.assign(customer, updateData, { updatedAt: new Date().toISOString() });
+        const { password: _, ...response } = customer as any;
+        return res.json(response);
+      }
+
+      const customer = await CustomerModel.findOneAndUpdate(
+        { user_id: req.params.id },
+        updateData,
+        { returnDocument: 'after' }
+      );
+
+      if (!customer) {
+        return res.status(404).json({ error: 'Customer not found' });
+      }
+
+      const customerObj = customer.toObject();
+      delete (customerObj as Record<string, unknown> & { password?: unknown }).password;
+      res.json(customerObj);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get('/api/admins', async (req, res) => {
     try {
       if (isFallbackMode(lastDbError)) {

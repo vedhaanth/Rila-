@@ -286,6 +286,26 @@ export const api = {
     return await res.json();
   },
 
+  async updateCustomer(id: string, data: Partial<{ name: string; email: string; phone?: string; address?: string; password?: string }>): Promise<UserProfile> {
+    const res = await fetch(`${API_BASE}/customers/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      let errorMessage = 'Failed to update customer profile';
+      try {
+        const parsed = JSON.parse(text);
+        errorMessage = parsed?.error || parsed?.message || errorMessage;
+      } catch {
+        if (text) errorMessage = text;
+      }
+      throw new Error(errorMessage);
+    }
+    return await res.json();
+  },
+
   // FEEDBACK & REVIEWS
   async getFeedback(productId?: string): Promise<Feedback[]> {
     try {
