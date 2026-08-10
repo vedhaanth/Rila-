@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Bill, Order } from '../types';
 import { formatINR } from '../utils/currency';
 import { Printer, Download, Mail, X, CheckCircle2, ShieldCheck } from 'lucide-react';
+import rilaLogo from '../assets/images/rila_logo.jpg';
 
 export const InvoiceModal: React.FC = () => {
   const { viewingInvoice, setViewingInvoice, addToast, adminProfiles } = useApp();
@@ -123,13 +124,11 @@ export const InvoiceModal: React.FC = () => {
           <div className="flex justify-between items-start border-b-2 border-amber-500 pb-6 mb-6">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                {adminProfile.logo && (
-                  <img
-                    src={adminProfile.logo}
-                    alt={adminProfile.business_name}
-                    className="w-12 h-12 rounded-xl object-cover border border-amber-300 shadow-sm"
-                  />
-                )}
+                <img
+                  src={adminProfile.logo || rilaLogo}
+                  alt={adminProfile.business_name || 'RILA Store'}
+                  className="w-14 h-14 rounded-2xl object-cover border border-amber-300 shadow-sm"
+                />
                 <div>
                   <h1 className="text-xl font-black tracking-tight text-slate-900 uppercase font-serif-display">
                     {adminProfile.business_name}
