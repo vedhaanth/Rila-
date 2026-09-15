@@ -14,9 +14,7 @@ import {
   X,
   MapPin,
   Clock,
-  Heart,
-  Moon,
-  Sun
+  Heart
 } from 'lucide-react';
 
 import rilaLogo from '../assets/images/rila_logo.jpg';
@@ -39,8 +37,7 @@ export const CustomerNavbar: React.FC<{
     logout,
     setIsEmailLogModalOpen,
     wishlist,
-    theme,
-    toggleTheme
+    theme
   } = useApp();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -333,7 +330,6 @@ export const CustomerNavbar: React.FC<{
                     </button>
 
                     <div className="mt-2 flex items-center gap-2">
-                      <button onClick={() => { toggleTheme(); setIsMobileMenuOpen(false); }} className="px-3 py-2 rounded-lg bg-stone-100 text-sm">{theme === 'dark' ? 'Light' : 'Dark'}</button>
                       <button onClick={() => { setIsEmailLogModalOpen(true); setIsMobileMenuOpen(false); }} className="px-3 py-2 rounded-lg bg-stone-100 text-sm">Email Logs</button>
                     </div>
                   </div>
@@ -397,14 +393,7 @@ export const CustomerNavbar: React.FC<{
             </button>
           )}
 
-          {/* Cart Button */}
-          <button
-            onClick={toggleTheme}
-            className="hidden xl:inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-white/90 text-stone-900 border border-stone-200 shadow-sm hover:bg-amber-50 transition"
-            title="Toggle Theme"
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
+          {/* View Cart */}
           <button
             onClick={() => setIsCartOpen(true)}
             className="relative z-50 flex items-center gap-2 px-3 h-10 bg-stone-950 hover:bg-stone-800 text-white rounded-xl transition group shadow-[0_8px_24px_-12px_rgba(0,0,0,0.45)] shrink-0 min-w-[44px] self-center"

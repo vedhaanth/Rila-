@@ -85,7 +85,6 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentPortal, setCurrentPortal] = useState<'customer' | 'admin' | 'order_manager'>('customer');
   const [activeCustomerTab, setActiveCustomerTab] = useState<'home' | 'products' | 'about' | 'contact' | 'feedback' | 'orders' | 'account' | 'login'>('home');
   const [activeAdminTab, setActiveAdminTab] = useState<'dashboard' | 'products' | 'orders' | 'inventory' | 'billing' | 'expenses' | 'reports' | 'customers' | 'settings'>('dashboard');
   const [activeAdminId, setActiveAdminId] = useState<AdminId>('admin1');
@@ -99,6 +98,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {
       return null;
     }
+  });
+
+  const [currentPortal, setCurrentPortal] = useState<'customer' | 'admin' | 'order_manager'>(() => {
+    if (currentUser?.role === 'admin') return 'admin';
+    if (currentUser?.role === 'order_manager') return 'order_manager';
+    return 'customer';
   });
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {

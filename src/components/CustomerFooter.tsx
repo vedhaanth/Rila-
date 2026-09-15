@@ -6,7 +6,7 @@ export const CustomerFooter: React.FC = () => {
   const { setActiveCustomerTab, adminProfiles } = useApp();
 
   return (
-        <footer className="bg-stone-900 text-stone-300 border-t border-stone-800 text-xs">
+    <footer className="bg-stone-900 text-stone-300 border-t border-stone-800 text-xs">
       {/* Value Proposition Badges */}
       <div className="border-b border-stone-800 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
