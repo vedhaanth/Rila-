@@ -25,3 +25,18 @@ View your app in AI Studio: https://ai.studio/apps/5fd7dece-aa0d-429d-8587-fc201
 - The backend now enables CORS using the `APP_URL` env var. Make sure `APP_URL` is set to your frontend URL (for example `https://rilastore.vercel.app`) so the deployed frontend can make cross-origin requests.
 
 After changing environment variables on your host (Vercel or similar), rebuild and redeploy the frontend so `VITE_API_BASE` is baked into the build.
+
+## Password Reset Email
+
+The Forgot Password flow sends a six-digit, one-time verification code that expires after 15 minutes. Configure these backend environment variables before enabling it in production:
+
+```dotenv
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-smtp-user
+SMTP_PASSWORD=your-smtp-password
+EMAIL_FROM=RILA Store <no-reply@example.com>
+```
+
+The password is stored as a hash after the verification code is accepted. Never commit SMTP credentials or other secrets to Git.

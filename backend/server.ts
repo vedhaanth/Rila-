@@ -1,9 +1,10 @@
 import 'dotenv/config';
-import { randomUUID, scryptSync, randomBytes, timingSafeEqual } from 'crypto';
+import { randomUUID, scryptSync, randomBytes, timingSafeEqual, createHash } from 'crypto';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import mongoose from 'mongoose';
+import nodemailer from 'nodemailer';
 import { createServer as createViteServer } from 'vite';
 import { AdminId, OrderStatus, EmailLog } from '../src/types';
 import { calculateFinanceMetrics } from '../src/utils/finance.js';
@@ -40,6 +41,7 @@ import EmailLogModel from '../src/models/EmailLog';
 import AdminModel from '../src/models/Admin';
 import CustomerModel from '../src/models/Customer';
 import EmployeeModel from '../src/models/Employee';
+import PasswordResetTokenModel from '../src/models/PasswordResetToken';
 
 type FallbackState = {
   admins: any[];
@@ -52,6 +54,7 @@ type FallbackState = {
   customers: any[];
   employees: any[];
   emailLogs: any[];
+  passwordResetTokens: any[];
 };
 
 function createFallbackState(): FallbackState {
@@ -131,7 +134,8 @@ function createFallbackState(): FallbackState {
     feedback: [],
     customers: [],
     employees: [],
-    emailLogs: []
+    emailLogs: [],
+    passwordResetTokens: []
   };
 }
 
@@ -149,7 +153,7 @@ async function seedDatabase() {
   const db = mongoose.connection.db;
   if (!db) return;
 
-  const collectionNames = ['products', 'orders', 'admins', 'customers', 'bills', 'expenses', 'suppliers', 'feedbacks', 'emaillogs', 'employees'];
+  const collectionNames = ['products', 'orders', 'admins', 'customers', 'bills', 'expenses', 'suppliers', 'feedbacks', 'emaillogs', 'employees', 'passwordresettokens'];
   for (const name of collectionNames) {
     try {
       await db.createCollection(name);
@@ -314,6 +318,138 @@ export async function startServer(app: express.Express, shouldListen = true) {
     await log.save();
     return log;
   }
+
+  const mailTransport = process.env.SMTP_HOST
+    ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: process.env.SMTP_USER && process.env.SMTP_PASSWORD
+        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD }
+        : undefined
+    })
+    : null;
+
+  async function sendEmail(recipient: string, subject: string, body: string, type: EmailLog['type']) {
+    if (!mailTransport) {
+      throw new Error('Email delivery is not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASSWORD.');
+    }
+    await mailTransport.sendMail({
+      from: process.env.EMAIL_FROM || process.env.SMTP_USER,
+      to: recipient,
+      subject,
+      text: body
+    });
+    await triggerEmail(recipient, subject, body, type);
+  }
+
+  const hashResetCode = (email: string, code: string) => createHash('sha256').update(`${email}:${code}`).digest('hex');
+
+  app.post('/api/auth/forgot-password', async (req, res) => {
+    try {
+      const normalizedEmail = String(req.body?.email || '').trim().toLowerCase();
+      if (!normalizedEmail || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+        return res.status(400).json({ error: 'A valid email address is required' });
+      }
+
+      let userType: 'customer' | 'admin' | 'employee' | null = null;
+      let userId = '';
+      let displayName = 'there';
+
+      if (isFallbackMode(lastDbError)) {
+        const admin = fallbackState.admins.find((item) => item.email === normalizedEmail);
+        const employee = fallbackState.employees.find((item) => item.email === normalizedEmail);
+        const customer = fallbackState.customers.find((item) => item.email === normalizedEmail);
+        const account = admin || employee || customer;
+        if (account) {
+          userType = admin ? 'admin' : employee ? 'employee' : 'customer';
+          userId = account.admin_id || account.employee_id || account.user_id;
+          displayName = account.admin_name || account.name || displayName;
+        }
+      } else {
+        const admin = await AdminModel.findOne({ email: normalizedEmail });
+        const employee = admin ? null : await EmployeeModel.findOne({ email: normalizedEmail });
+        const customer = admin || employee ? null : await CustomerModel.findOne({ email: normalizedEmail });
+        const account: any = admin || employee || customer;
+        if (account) {
+          userType = admin ? 'admin' : employee ? 'employee' : 'customer';
+          userId = account.admin_id || account.employee_id || account.user_id;
+          displayName = account.admin_name || account.name || displayName;
+        }
+      }
+
+      // Do not reveal whether an email exists.
+      if (!userType) {
+        return res.json({ message: 'If an account exists, a verification code has been sent.' });
+      }
+
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+      const tokenHash = hashResetCode(normalizedEmail, code);
+
+      if (isFallbackMode(lastDbError)) {
+        fallbackState.passwordResetTokens = fallbackState.passwordResetTokens.filter((token) => token.email !== normalizedEmail);
+        fallbackState.passwordResetTokens.push({ email: normalizedEmail, user_type: userType, user_id: userId, token_hash: tokenHash, expires_at: expiresAt.toISOString(), used: false });
+      } else {
+        await PasswordResetTokenModel.deleteMany({ email: normalizedEmail, used: false });
+        await PasswordResetTokenModel.create({ email: normalizedEmail, user_type: userType, user_id: userId, token_hash: tokenHash, expires_at: expiresAt, used: false });
+      }
+
+      await sendEmail(
+        normalizedEmail,
+        'RILA password reset verification code',
+        `Hi ${displayName},\n\nYour RILA password reset code is: ${code}\n\nThis code expires in 15 minutes and can be used only once. If you did not request this, you can ignore this email.`,
+        'Password Reset'
+      );
+
+      res.json({ message: 'If an account exists, a verification code has been sent.' });
+    } catch (err: any) {
+      res.status(503).json({ error: err.message || 'Unable to send password reset email' });
+    }
+  });
+
+  app.post('/api/auth/reset-password', async (req, res) => {
+    try {
+      const normalizedEmail = String(req.body?.email || '').trim().toLowerCase();
+      const code = String(req.body?.code || '').trim();
+      const password = String(req.body?.password || '').trim();
+      if (!normalizedEmail || !/^\d{6}$/.test(code) || password.length < 8) {
+        return res.status(400).json({ error: 'Email, six-digit verification code, and an 8-character password are required' });
+      }
+
+      const tokenHash = hashResetCode(normalizedEmail, code);
+      let token: any;
+      if (isFallbackMode(lastDbError)) {
+        token = fallbackState.passwordResetTokens.find((item) => item.email === normalizedEmail && item.token_hash === tokenHash && !item.used && new Date(item.expires_at).getTime() > Date.now());
+      } else {
+        token = await PasswordResetTokenModel.findOne({ email: normalizedEmail, token_hash: tokenHash, used: false, expires_at: { $gt: new Date() } });
+      }
+      if (!token) return res.status(400).json({ error: 'The verification code is invalid or expired' });
+
+      const hashedPassword = hashPassword(password);
+      if (isFallbackMode(lastDbError)) {
+        const collection = token.user_type === 'admin' ? fallbackState.admins : token.user_type === 'employee' ? fallbackState.employees : fallbackState.customers;
+        const account = collection.find((item) => (item.admin_id || item.employee_id || item.user_id) === token.user_id);
+        if (!account) return res.status(404).json({ error: 'Account not found' });
+        account.password = hashedPassword;
+        token.used = true;
+      } else {
+        const filter = token.user_type === 'admin'
+          ? { admin_id: token.user_id }
+          : token.user_type === 'employee'
+            ? { employee_id: token.user_id }
+            : { user_id: token.user_id };
+        const Model: any = token.user_type === 'admin' ? AdminModel : token.user_type === 'employee' ? EmployeeModel : CustomerModel;
+        const updated = await Model.findOneAndUpdate(filter, { password: hashedPassword }, { returnDocument: 'after' });
+        if (!updated) return res.status(404).json({ error: 'Account not found' });
+        await PasswordResetTokenModel.updateOne({ _id: token._id }, { used: true });
+      }
+
+      res.json({ message: 'Password updated successfully. You can now sign in.' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Unable to reset password' });
+    }
+  });
 
   app.get('/api/health', (req, res) => {
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';

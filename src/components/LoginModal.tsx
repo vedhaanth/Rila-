@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 import { X, Eye, EyeOff, ArrowRight, Lock, Mail, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
 import rilaLogo from '../assets/images/rila_logo.jpg';
+import { PasswordResetForm } from './PasswordResetForm';
 
 export const LoginModal: React.FC = () => {
   const {
@@ -25,6 +26,7 @@ export const LoginModal: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [passwordStrength, setPasswordStrength] = useState<'Weak' | 'Medium' | 'Strong'>('Weak');
+  const [isForgotMode, setIsForgotMode] = useState(false);
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -180,7 +182,7 @@ export const LoginModal: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex items-center gap-2 mb-7 text-xs font-semibold text-stone-500">
+            {!isForgotMode && <div className="flex items-center gap-2 mb-7 text-xs font-semibold text-stone-500">
               <button
                 type="button"
                 onClick={() => { setIsRegisterMode(false); setError(''); }}
@@ -195,9 +197,9 @@ export const LoginModal: React.FC = () => {
               >
                 Register
               </button>
-            </div>
+            </div>}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {!isForgotMode && <form onSubmit={handleSubmit} className="space-y-4">
               {isRegisterMode && (
                 <>
                   <div className="relative">
@@ -305,7 +307,7 @@ export const LoginModal: React.FC = () => {
                   Remember me
                 </label>
                 {!isRegisterMode && (
-                  <button type="button" className="text-amber-600 font-semibold hover:text-amber-700 transition">Forgot Password?</button>
+                  <button type="button" onClick={() => { setIsForgotMode(true); setError(''); }} className="text-amber-600 font-semibold hover:text-amber-700 transition">Forgot Password?</button>
                 )}
               </div>
 
@@ -316,7 +318,9 @@ export const LoginModal: React.FC = () => {
               >
                 {isSubmitting ? (isRegisterMode ? 'Creating Account…' : 'Signing In…') : isRegisterMode ? 'Create Account' : 'Login'}
               </button>
-            </form>
+            </form>}
+
+            {isForgotMode && <PasswordResetForm onBack={() => { setIsForgotMode(false); setError(''); }} />}
 
             <div className="mt-6 text-center text-sm text-stone-500 dark:text-stone-400">
               {isRegisterMode ? (

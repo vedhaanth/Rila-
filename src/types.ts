@@ -229,7 +229,7 @@ export interface EmailLog {
   recipient: string;
   subject: string;
   body: string;
-  type: 'Order Confirmation' | 'Invoice' | 'Shipping Update' | 'Admin Order Alert' | 'Delivery Confirmation';
+  type: 'Order Confirmation' | 'Invoice' | 'Shipping Update' | 'Admin Order Alert' | 'Delivery Confirmation' | 'Password Reset';
   sent_at: string;
   status: 'Sent' | 'Failed';
 }

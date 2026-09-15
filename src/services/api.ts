@@ -48,6 +48,28 @@ export const api = {
     return await res.json();
   },
 
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Unable to send password reset code');
+    return data;
+  },
+
+  async resetPassword(email: string, code: string, password: string): Promise<{ message: string }> {
+    const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code, password })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Unable to reset password');
+    return data;
+  },
+
   async getAdmins(): Promise<any[]> {
     try {
       const res = await fetch(`${API_BASE}/admins`);
