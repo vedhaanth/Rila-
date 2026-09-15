@@ -130,9 +130,14 @@ export interface Bill {
   discount?: number;
   discount_total?: number;
   grand_total: number;
+  current_total?: number;
   payment_method?: string;
   payment_mode?: string;
-  payment_status: 'Paid' | 'Pending';
+  payment_status: 'Paid' | 'Partially Paid' | 'Pending';
+  amount_paid?: number;
+  previous_balance_due?: number;
+  balance_due?: number;
+  sale_type?: 'Retail' | 'Wholesale';
   status?: string;
   admin_id: AdminId;
   created_at: string;

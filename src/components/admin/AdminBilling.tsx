@@ -31,6 +31,8 @@ export const AdminBilling: React.FC = () => {
   const [customerEmail, setCustomerEmail] = useState('walkin.customer@gmail.com');
   const [customerGstin, setCustomerGstin] = useState('');
   const [paymentMode, setPaymentMode] = useState<'Cash' | 'UPI' | 'Card' | 'Net Banking'>('Cash');
+  const [saleType, setSaleType] = useState<'Retail' | 'Wholesale'>('Retail');
+  const [amountPaid, setAmountPaid] = useState(0);
 
   // POS Items
   const [posCart, setPosCart] = useState<{ product: Product; quantity: number }[]>([]);
@@ -75,9 +77,20 @@ export const AdminBilling: React.FC = () => {
 
   const posSubtotal = posCart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const posTaxable = Math.max(0, posSubtotal - posDiscount);
-  const posCgst = posTaxable * 0.09;
-  const posSgst = posTaxable * 0.09;
+  const posCgst = posTaxable * 0.025;
+  const posSgst = posTaxable * 0.025;
   const posGrandTotal = posTaxable + posCgst + posSgst;
+  const previousBalanceDue = bills
+    .filter((bill) => bill.customer_phone === customerPhone && bill.balance_due === undefined
+      ? bill.payment_status === 'Pending' || bill.payment_status === 'Partially Paid'
+      : bill.customer_phone === customerPhone && (bill.balance_due ?? 0) > 0)
+    .reduce((sum, bill) => sum + (bill.balance_due ?? Math.max(0, (bill.grand_total ?? 0) - (bill.amount_paid ?? 0))), 0);
+  const totalPayable = posGrandTotal + previousBalanceDue;
+  const remainingBalance = Math.max(0, totalPayable - amountPaid);
+
+  useEffect(() => {
+    setAmountPaid(Number(totalPayable.toFixed(2)));
+  }, [posGrandTotal, previousBalanceDue]);
 
   const handleGeneratePosInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +106,8 @@ export const AdminBilling: React.FC = () => {
         customer_phone: customerPhone,
         customer_email: customerEmail,
         customer_gstin: customerGstin,
+        sale_type: saleType,
+        amount_paid: amountPaid,
         products: posCart.map((i) => ({
           product_id: i.product.product_id,
           product_name: i.product.product_name,
@@ -129,7 +144,7 @@ export const AdminBilling: React.FC = () => {
             Vyapar Billing & Counter POS Engine
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Offline store bill creation, automated 18% GST tax calculation, & invoice archives
+            Offline store bill creation, automated 5% GST tax calculation, & invoice archives
           </p>
         </div>
 
@@ -215,6 +230,22 @@ export const AdminBilling: React.FC = () => {
             <h3 className="font-extrabold text-slate-900 dark:text-white text-base border-b pb-2">
               1. Customer Information
             </h3>
+
+            <div>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Sale Type</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['Retail', 'Wholesale'] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setSaleType(type)}
+                    className={`p-2 rounded-xl border text-center font-bold transition ${saleType === type ? 'bg-amber-500 text-slate-950 border-amber-500 shadow' : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div>
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Customer Name</label>
@@ -379,18 +410,49 @@ export const AdminBilling: React.FC = () => {
               </div>
 
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                <span>CGST Tax (9%):</span>
+                <span>CGST Tax (2.5%):</span>
                 <span>+{formatINR(posCgst ?? 0)}</span>
               </div>
 
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                <span>SGST Tax (9%):</span>
+                <span>SGST Tax (2.5%):</span>
                 <span>+{formatINR(posSgst ?? 0)}</span>
               </div>
 
               <div className="flex justify-between text-base font-extrabold text-slate-900 dark:text-white border-t pt-2">
-                <span>Grand Total Payable:</span>
-                <span className="text-emerald-600 dark:text-emerald-400">{formatINR(posGrandTotal ?? 0)}</span>
+                <span>Current Bill Total:</span>
+                <span className="text-slate-900 dark:text-white">{formatINR(posGrandTotal ?? 0)}</span>
+              </div>
+
+              {previousBalanceDue > 0 && (
+                <div className="flex justify-between text-amber-700 dark:text-amber-300 font-bold border-t pt-2">
+                  <span>Previous Balance Added:</span>
+                  <span>{formatINR(previousBalanceDue)}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center text-slate-700 dark:text-slate-300 font-bold">
+                <span>Total Payable:</span>
+                <span className="text-emerald-600 dark:text-emerald-400">{formatINR(totalPayable)}</span>
+              </div>
+
+              <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
+                <label htmlFor="amount-paid">Amount Received:</label>
+                <input
+                  id="amount-paid"
+                  type="number"
+                  min="0"
+                  max={totalPayable}
+                  step="0.01"
+                  value={amountPaid}
+                  onChange={(e) => setAmountPaid(Math.min(totalPayable, Math.max(0, Number(e.target.value))))}
+                  className="w-28 px-2 py-1 rounded border border-slate-300 bg-white text-slate-900 text-right font-mono dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+                />
+              </div>
+
+              <div className={`flex justify-between font-extrabold border-t pt-2 ${remainingBalance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                <span>Remaining Balance:</span>
+                <span>{formatINR(remainingBalance)}</span>
               </div>
             </div>
 

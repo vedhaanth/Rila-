@@ -62,6 +62,11 @@ export const InvoiceModal: React.FC = () => {
   const subtotal = ((viewingInvoice as Order).subtotal ?? (viewingInvoice as Bill).subtotal) ?? 0;
   const taxGst = ((viewingInvoice as Order).gst_amount ?? (viewingInvoice as Bill).tax_gst) ?? 0;
   const grandTotal = ((viewingInvoice as Order).total_amount ?? (viewingInvoice as Bill).grand_total) ?? 0;
+  const bill = viewingInvoice as Bill;
+  const previousBalanceDue = isBill ? (bill.previous_balance_due ?? 0) : 0;
+  const amountPaid = isBill ? (bill.amount_paid ?? grandTotal) : grandTotal;
+  const balanceDue = isBill ? (bill.balance_due ?? Math.max(0, grandTotal - amountPaid)) : 0;
+  const paymentStatus = isBill ? (bill.payment_status || (balanceDue > 0 ? 'Pending' : 'Paid')) : 'Paid';
 
   const handlePrint = () => {
     window.print();
@@ -150,8 +155,8 @@ export const InvoiceModal: React.FC = () => {
                 <p className="font-bold text-slate-900">Invoice No: {invoiceNumber}</p>
                 <p>Date: {createdAt}</p>
                 <p>Payment Mode: <span className="font-semibold text-emerald-700">{paymentMethod}</span></p>
-                <p className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-sans text-[11px] font-bold">
-                  <CheckCircle2 className="w-3 h-3" /> Paid In Full
+                <p className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-sans text-[11px] font-bold ${paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                  <CheckCircle2 className="w-3 h-3" /> {paymentStatus}
                 </p>
               </div>
             </div>
@@ -232,6 +237,24 @@ export const InvoiceModal: React.FC = () => {
                 <span>Grand Total:</span>
                 <span className="font-mono text-amber-700 font-black">{formatINR(grandTotal ?? 0)}</span>
               </div>
+              {previousBalanceDue > 0 && (
+                <div className="flex justify-between text-amber-700 font-semibold">
+                  <span>Previous Balance Included:</span>
+                  <span className="font-mono">{formatINR(previousBalanceDue)}</span>
+                </div>
+              )}
+              {isBill && (
+                <>
+                  <div className="flex justify-between text-slate-700">
+                    <span>Amount Received:</span>
+                    <span className="font-mono">{formatINR(amountPaid)}</span>
+                  </div>
+                  <div className={`flex justify-between font-extrabold border-t pt-2 ${balanceDue > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                    <span>Balance Due:</span>
+                    <span className="font-mono">{formatINR(balanceDue)}</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

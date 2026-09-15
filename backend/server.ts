@@ -1204,11 +1204,14 @@ export async function startServer(app: express.Express, shouldListen = true) {
   app.post('/api/bills/manual', async (req, res) => {
     try {
       const {
+        admin_id: requestedAdminId,
         customer_name,
         customer_phone,
         customer_email,
         products,
         payment_method,
+        amount_paid,
+        sale_type,
         discount_flat,
         notes
       } = req.body;
@@ -1221,8 +1224,28 @@ export async function startServer(app: express.Express, shouldListen = true) {
       }
 
       const adminDoc = await AdminModel.findOne();
-      const admin_id = adminDoc?.admin_id || 'admin1';
+      const admin_id = requestedAdminId || adminDoc?.admin_id || 'admin1';
       const adminBusinessName = adminDoc?.business_name || 'RILA';
+
+      const outstandingAmount = (bill: any) => {
+        const recordedBalance = Number(bill.balance_due);
+        if (Number.isFinite(recordedBalance) && recordedBalance > 0) return recordedBalance;
+        if (bill.payment_status === 'Pending' || bill.payment_status === 'Partially Paid') {
+          return Math.max(0, Number(bill.grand_total || 0) - Number(bill.amount_paid || 0));
+        }
+        return 0;
+      };
+
+      let previous_balance_due = 0;
+      if (isFallbackMode(lastDbError)) {
+        previous_balance_due = (fallbackState.bills || [])
+          .filter((bill: any) => bill.admin_id === admin_id && bill.customer_phone === customer_phone)
+          .reduce((sum: number, bill: any) => sum + outstandingAmount(bill), 0);
+      } else {
+        const previousBills = await BillModel.find({ admin_id, customer_phone });
+        previous_balance_due = previousBills.reduce((sum, bill) => sum + outstandingAmount(bill), 0);
+      }
+      previous_balance_due = Number(previous_balance_due.toFixed(2));
 
       const subtotal = products.reduce((acc: number, item: any) => {
         const lineTotal = (Number(item.price) - Number(item.discount || 0)) * Number(item.quantity);
@@ -1231,8 +1254,16 @@ export async function startServer(app: express.Express, shouldListen = true) {
 
       const flatDisc = Number(discount_flat || 0);
       const discountedSubtotal = Math.max(0, subtotal - flatDisc);
-      const tax_gst = Number((discountedSubtotal * 0.18).toFixed(2));
-      const grand_total = Number((discountedSubtotal + tax_gst).toFixed(2));
+      const tax_gst = Number((discountedSubtotal * 0.05).toFixed(2));
+      const current_total = Number((discountedSubtotal + tax_gst).toFixed(2));
+      const grand_total = Number((current_total + previous_balance_due).toFixed(2));
+      const amountPaid = Math.min(Math.max(0, Number(amount_paid ?? grand_total)), grand_total);
+      const balance_due = Number((grand_total - amountPaid).toFixed(2));
+      const payment_status = balance_due === 0
+        ? 'Paid'
+        : amountPaid > 0
+          ? 'Partially Paid'
+          : 'Pending';
 
       const invoiceNo = `POS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -1264,8 +1295,13 @@ export async function startServer(app: express.Express, shouldListen = true) {
           tax_gst,
           discount_total: flatDisc,
           grand_total,
+          current_total,
           payment_method: payment_method || 'Cash',
-          payment_status: 'Paid',
+          payment_status,
+          amount_paid: amountPaid,
+          previous_balance_due,
+          balance_due,
+          sale_type: sale_type || 'Retail',
           admin_id: admin_id,
           created_at: new Date().toISOString(),
           notes: notes || 'Vyapar Retail Counter POS Bill'
@@ -1314,8 +1350,13 @@ export async function startServer(app: express.Express, shouldListen = true) {
         tax_gst,
         discount_total: flatDisc,
         grand_total,
+        current_total,
         payment_method: payment_method || 'Cash',
-        payment_status: 'Paid',
+        payment_status,
+        amount_paid: amountPaid,
+        previous_balance_due,
+        balance_due,
+        sale_type: sale_type || 'Retail',
         admin_id: admin_id,
         created_at: new Date().toISOString(),
         notes: notes || 'Vyapar Retail Counter POS Bill'
@@ -1632,7 +1673,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
       const allProducts = await ProductModel.find();
 
       const sales_revenue = adminOrders.reduce((acc, o) => acc + o.total_amount, 0) +
-        adminBills.filter(b => b.bill_type === 'Manual').reduce((acc, b) => acc + b.grand_total, 0);
+        adminBills.filter(b => b.bill_type === 'Manual').reduce((acc, b) => acc + (b.current_total ?? (b.grand_total - (b.previous_balance_due || 0))), 0);
 
       const purchaseCost = adminExpenses
         .filter((expense) => expense.category === 'Product Purchase')

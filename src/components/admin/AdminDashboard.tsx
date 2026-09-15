@@ -23,6 +23,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine,
   PieChart,
   Pie,
   Cell,
@@ -56,6 +57,20 @@ export const AdminDashboard: React.FC = () => {
   }, [activeAdminId, refreshDataFlag]);
 
   const lowStockProducts = products.filter((p) => p.stock < 10);
+
+  const formatChartDate = (date: string) => {
+    const parsedDate = new Date(`${date}T00:00:00`);
+    return Number.isNaN(parsedDate.getTime())
+      ? date
+      : parsedDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  };
+
+  const formatChartValue = (value: number) => {
+    const absoluteValue = Math.abs(value);
+    if (absoluteValue >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
+    if (absoluteValue >= 1000) return `₹${(value / 1000).toFixed(1)}k`;
+    return `₹${value}`;
+  };
 
   const COLORS = ['#d97706', '#10b981', '#f59e0b', '#0284c7', '#8b5cf6', '#06b6d4', '#ec4899'];
 
@@ -170,8 +185,8 @@ export const AdminDashboard: React.FC = () => {
         <div className="lg:col-span-2 p-6 bg-white dark:bg-slate-900 rounded-3xl border border-amber-200/80 dark:border-slate-800 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold font-serif-display text-slate-900 dark:text-white text-base">Sales Revenue & Profit Performance</h3>
-              <p className="text-xs text-slate-500 font-medium">Daily financial breakdown for current period</p>
+              <h3 className="font-bold font-serif-display text-slate-900 dark:text-white text-base">Daily Financial Performance</h3>
+              <p className="text-xs text-slate-500 font-medium">Revenue, expenses, and net result by day</p>
             </div>
             <button
               onClick={() => setActiveAdminTab('reports')}
@@ -181,18 +196,34 @@ export const AdminDashboard: React.FC = () => {
             </button>
           </div>
 
-          <div className="h-64 w-full pt-2">
+          <div className="h-72 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={pnlReport?.daily_sales || []}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '16px', border: '1px solid #f59e0b40', color: '#fff', fontSize: '12px' }}
+              <BarChart data={pnlReport?.daily_sales || []} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+                <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="#cbd5e1" opacity={0.55} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={formatChartDate}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  axisLine={{ stroke: '#94a3b8' }}
+                  tickLine={false}
                 />
-                <Bar dataKey="sales" fill="#d97706" name="Sales Revenue (₹)" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="expenses" fill="#ef4444" name="Expenses (₹)" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="profit" fill="#10b981" name="Net Profit (₹)" radius={[6, 6, 0, 0]} />
+                <YAxis
+                  tickFormatter={formatChartValue}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={58}
+                />
+                <ReferenceLine y={0} stroke="#475569" strokeWidth={1.5} />
+                <Tooltip
+                  labelFormatter={(label) => `Date: ${formatChartDate(String(label))}`}
+                  formatter={(value: number | undefined) => [formatINR(value ?? 0), '']}
+                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '14px', border: '1px solid #f59e0b40', color: '#fff', fontSize: '12px' }}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                <Bar dataKey="sales" fill="#d97706" name="Revenue" radius={[5, 5, 0, 0]} maxBarSize={34} />
+                <Bar dataKey="expenses" fill="#f43f5e" name="Expenses" radius={[5, 5, 0, 0]} maxBarSize={34} />
+                <Bar dataKey="profit" fill="#10b981" name="Net Profit" radius={[5, 5, 0, 0]} maxBarSize={34} />
               </BarChart>
             </ResponsiveContainer>
           </div>
