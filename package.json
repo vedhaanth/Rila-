@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx backend/run-server.ts",
+    "prebuild": "node ./scripts/install-dependencies.mjs",
     "build": "vite build && node ./scripts/build-server.mjs",
     "prestart": "npm run build",
     "start": "node ./scripts/start-prod.mjs",
