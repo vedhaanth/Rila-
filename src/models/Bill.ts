@@ -45,6 +45,8 @@ const BillSchema: Schema = new Schema(
     payment_mode: { type: String },
     payment_status: { type: String, enum: ['Paid', 'Partially Paid', 'Pending'], default: 'Paid' },
     amount_paid: { type: Number, default: 0 },
+    cash_amount_paid: { type: Number, default: 0 },
+    upi_amount_paid: { type: Number, default: 0 },
     previous_balance_due: { type: Number, default: 0 },
     balance_due: { type: Number, default: 0 },
     sale_type: { type: String, enum: ['Retail', 'Wholesale'], default: 'Retail' },

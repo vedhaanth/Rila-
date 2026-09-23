@@ -38,7 +38,7 @@ export const CheckoutModal: React.FC = () => {
   const [customerName, setCustomerName] = useState(currentUser?.name || '');
   const [customerPhone, setCustomerPhone] = useState(currentUser?.phone || '');
   const [customerEmail, setCustomerEmail] = useState(currentUser?.email || '');
-  const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'Credit Card' | 'Debit Card' | 'Net Banking' | 'Cash on Delivery'>('UPI');
+  const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'Card' | 'Net Banking' | 'Cash' | 'UPI + Cash'>('UPI');
   const [upiId, setUpiId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placedOrderResult, setPlacedOrderResult] = useState<{ master_order_id: string; bills: Bill[] } | null>(null);
@@ -210,11 +210,11 @@ export const CheckoutModal: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('Credit Card')}
-                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'Credit Card' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-[0_10px_25px_-16px_rgba(245,158,11,0.7)]' : 'border-amber-200 text-slate-800 hover:bg-amber-50/60'}`}
+                    onClick={() => setPaymentMethod('Card')}
+                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'Card' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-[0_10px_25px_-16px_rgba(245,158,11,0.7)]' : 'border-amber-200 text-slate-800 hover:bg-amber-50/60'}`}
                   >
                     <CreditCard className="w-4 h-4 text-amber-600" />
-                    Credit / Debit Card
+                    Card
                   </button>
 
                   <button
@@ -228,24 +228,24 @@ export const CheckoutModal: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('Debit Card')}
-                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'Debit Card' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-[0_10px_25px_-16px_rgba(245,158,11,0.7)]' : 'border-amber-200 text-slate-800 hover:bg-amber-50/60'}`}
+                    onClick={() => setPaymentMethod('Cash')}
+                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'Cash' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-[0_10px_25px_-16px_rgba(245,158,11,0.7)]' : 'border-amber-200 text-slate-800 hover:bg-amber-50/60'}`}
                   >
-                    <Lock className="w-4 h-4 text-amber-600" />
-                    Razorpay Gateway
+                    <Receipt className="w-4 h-4 text-amber-600" />
+                    Cash
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('Cash on Delivery')}
-                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'Cash on Delivery' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-[0_10px_25px_-16px_rgba(245,158,11,0.7)]' : 'border-amber-200 text-slate-800 hover:bg-amber-50/60'}`}
+                    onClick={() => setPaymentMethod('UPI + Cash')}
+                    className={`p-3.5 rounded-2xl border flex items-center gap-2.5 font-extrabold transition ${paymentMethod === 'UPI + Cash' ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-[0_10px_25px_-16px_rgba(245,158,11,0.7)]' : 'border-amber-200 text-slate-800 hover:bg-amber-50/60'}`}
                   >
-                    <Receipt className="w-4 h-4 text-amber-600" />
-                    Cash on Delivery
+                    <QrCode className="w-4 h-4 text-amber-600" />
+                    UPI + Cash
                   </button>
                 </div>
 
-                {paymentMethod === 'UPI' && (
+                {(paymentMethod === 'UPI' || paymentMethod === 'UPI + Cash') && (
                   <div className="mt-3 p-3.5 bg-amber-50/80 rounded-2xl border border-amber-200 text-xs flex items-center gap-4">
                     <div className="w-16 h-16 bg-white p-1.5 border border-amber-200 rounded-xl shadow flex items-center justify-center shrink-0">
                       <QrCode className="w-12 h-12 text-slate-900" />

@@ -38,6 +38,7 @@ export type UserProfile = User;
 
 export interface Product {
   product_id: string;
+  barcode?: string;
   product_name: string;
   category: string;
   image?: string;
@@ -135,6 +136,8 @@ export interface Bill {
   payment_mode?: string;
   payment_status: 'Paid' | 'Partially Paid' | 'Pending';
   amount_paid?: number;
+  cash_amount_paid?: number;
+  upi_amount_paid?: number;
   previous_balance_due?: number;
   balance_due?: number;
   sale_type?: 'Retail' | 'Wholesale';

@@ -30,9 +30,11 @@ export const AdminBilling: React.FC = () => {
   const [customerPhone, setCustomerPhone] = useState('+1 (555) 987-6543');
   const [customerEmail, setCustomerEmail] = useState('walkin.customer@gmail.com');
   const [customerGstin, setCustomerGstin] = useState('');
-  const [paymentMode, setPaymentMode] = useState<'Cash' | 'UPI' | 'Card' | 'Net Banking'>('Cash');
+  const [paymentMode, setPaymentMode] = useState<'Cash' | 'UPI' | 'Card' | 'Net Banking' | 'UPI + Cash'>('Cash');
   const [saleType, setSaleType] = useState<'Retail' | 'Wholesale'>('Retail');
   const [amountPaid, setAmountPaid] = useState(0);
+  const [cashAmountPaid, setCashAmountPaid] = useState(0);
+  const [upiAmountPaid, setUpiAmountPaid] = useState(0);
 
   // POS Items
   const [posCart, setPosCart] = useState<{ product: Product; quantity: number }[]>([]);
@@ -86,16 +88,24 @@ export const AdminBilling: React.FC = () => {
       : bill.customer_phone === customerPhone && (bill.balance_due ?? 0) > 0)
     .reduce((sum, bill) => sum + (bill.balance_due ?? Math.max(0, (bill.grand_total ?? 0) - (bill.amount_paid ?? 0))), 0);
   const totalPayable = posGrandTotal + previousBalanceDue;
-  const remainingBalance = Math.max(0, totalPayable - amountPaid);
+  const splitAmountPaid = cashAmountPaid + upiAmountPaid;
+  const receivedAmount = paymentMode === 'UPI + Cash' ? splitAmountPaid : amountPaid;
+  const remainingBalance = Math.max(0, totalPayable - receivedAmount);
 
   useEffect(() => {
     setAmountPaid(Number(totalPayable.toFixed(2)));
+    setCashAmountPaid(Number(totalPayable.toFixed(2)));
+    setUpiAmountPaid(0);
   }, [posGrandTotal, previousBalanceDue]);
 
   const handleGeneratePosInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (posCart.length === 0) {
       addToast('Empty POS Cart', 'Please add at least one item to generate a bill.', 'error');
+      return;
+    }
+    if (paymentMode === 'UPI + Cash' && splitAmountPaid > totalPayable) {
+      addToast('Invalid Payment Split', 'Cash and UPI together cannot exceed the total payable.', 'error');
       return;
     }
 
@@ -107,7 +117,9 @@ export const AdminBilling: React.FC = () => {
         customer_email: customerEmail,
         customer_gstin: customerGstin,
         sale_type: saleType,
-        amount_paid: amountPaid,
+        amount_paid: receivedAmount,
+        cash_amount_paid: paymentMode === 'UPI + Cash' ? cashAmountPaid : paymentMode === 'Cash' ? amountPaid : 0,
+        upi_amount_paid: paymentMode === 'UPI + Cash' ? upiAmountPaid : paymentMode === 'UPI' ? amountPaid : 0,
         products: posCart.map((i) => ({
           product_id: i.product.product_id,
           product_name: i.product.product_name,
@@ -298,7 +310,7 @@ export const AdminBilling: React.FC = () => {
             </h3>
 
             <div className="grid grid-cols-2 gap-2">
-              {(['Cash', 'UPI', 'Card', 'Net Banking'] as const).map((m) => (
+              {(['Cash', 'UPI', 'Card', 'Net Banking', 'UPI + Cash'] as const).map((m) => (
                 <button
                   key={m}
                   type="button"
@@ -309,6 +321,35 @@ export const AdminBilling: React.FC = () => {
                 </button>
               ))}
             </div>
+
+            {paymentMode === 'UPI + Cash' && (
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <label className="text-slate-700 dark:text-slate-300 font-semibold">
+                  Cash Paid
+                  <input
+                    type="number"
+                    min="0"
+                    max={totalPayable}
+                    step="0.01"
+                    value={cashAmountPaid}
+                    onChange={(e) => setCashAmountPaid(Math.max(0, Number(e.target.value)))}
+                    className="w-full mt-1 px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 font-mono dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+                  />
+                </label>
+                <label className="text-slate-700 dark:text-slate-300 font-semibold">
+                  UPI Paid
+                  <input
+                    type="number"
+                    min="0"
+                    max={totalPayable}
+                    step="0.01"
+                    value={upiAmountPaid}
+                    onChange={(e) => setUpiAmountPaid(Math.max(0, Number(e.target.value)))}
+                    className="w-full mt-1 px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 font-mono dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+                  />
+                </label>
+              </div>
+            )}
           </div>
 
           {/* POS Item Picker & Billing Basket */}
@@ -436,19 +477,26 @@ export const AdminBilling: React.FC = () => {
                 <span className="text-emerald-600 dark:text-emerald-400">{formatINR(totalPayable)}</span>
               </div>
 
-              <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
-                <label htmlFor="amount-paid">Amount Received:</label>
-                <input
-                  id="amount-paid"
-                  type="number"
-                  min="0"
-                  max={totalPayable}
-                  step="0.01"
-                  value={amountPaid}
-                  onChange={(e) => setAmountPaid(Math.min(totalPayable, Math.max(0, Number(e.target.value))))}
-                  className="w-28 px-2 py-1 rounded border border-slate-300 bg-white text-slate-900 text-right font-mono dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
-                />
-              </div>
+              {paymentMode === 'UPI + Cash' ? (
+                <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
+                  <span>Total Received:</span>
+                  <span className="font-mono">{formatINR(receivedAmount)}</span>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center text-slate-700 dark:text-slate-300">
+                  <label htmlFor="amount-paid">Amount Received:</label>
+                  <input
+                    id="amount-paid"
+                    type="number"
+                    min="0"
+                    max={totalPayable}
+                    step="0.01"
+                    value={amountPaid}
+                    onChange={(e) => setAmountPaid(Math.min(totalPayable, Math.max(0, Number(e.target.value))))}
+                    className="w-28 px-2 py-1 rounded border border-slate-300 bg-white text-slate-900 text-right font-mono dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+                  />
+                </div>
+              )}
 
               <div className={`flex justify-between font-extrabold border-t pt-2 ${remainingBalance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                 <span>Remaining Balance:</span>

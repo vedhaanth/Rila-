@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { BrowserMultiFormatReader } from '@zxing/browser';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
-import { Product, Supplier } from '../../types'; import { formatINR } from '../../utils/currency'; import {
+import { Product, Supplier } from '../../types';
+import { formatINR } from '../../utils/currency';
+import { findProductByBarcode } from '../../utils/barcode';
+import {
   Boxes,
   AlertTriangle,
   Plus,
@@ -53,6 +57,49 @@ export const AdminInventory: React.FC = () => {
   const [highlightedProductId, setHighlightedProductId] = useState<string | null>(null);
   const [scannedProduct, setScannedProduct] = useState<Product | null>(null);
   const [isScanningActive, setIsScanningActive] = useState(false);
+  const [selectedScanProductIds, setSelectedScanProductIds] = useState<string[]>([]);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const cameraVideoRef = useRef<HTMLVideoElement>(null);
+  const cameraControlsRef = useRef<{ stop: () => void } | null>(null);
+
+  const availableProductsForScan = products.filter((p) => !selectedScanProductIds.includes(p.product_id));
+
+  const stopCamera = () => {
+    cameraControlsRef.current?.stop();
+    cameraControlsRef.current = null;
+    setIsCameraOpen(false);
+  };
+
+  const startCamera = async () => {
+    if (!cameraVideoRef.current) return;
+
+    setCameraError('');
+    setIsCameraOpen(true);
+
+    try {
+      const reader = new BrowserMultiFormatReader();
+      cameraControlsRef.current = await reader.decodeFromVideoDevice(
+        undefined,
+        cameraVideoRef.current,
+        (result) => {
+          if (!result) return;
+
+          const scannedValue = result.getText();
+          stopCamera();
+          setScannedCodeInput(scannedValue);
+          handleProcessBarcodeScan(scannedValue);
+        }
+      );
+    } catch (error: any) {
+      setIsCameraOpen(false);
+      setCameraError(
+        error?.name === 'NotAllowedError'
+          ? 'Camera permission was blocked. Allow camera access in the browser address bar and try again.'
+          : 'Camera could not start. Use HTTPS or localhost, then try again.'
+      );
+    }
+  };
 
   const handleProcessBarcodeScan = (codeToSearch: string) => {
     const query = codeToSearch.trim().toLowerCase();
@@ -62,14 +109,15 @@ export const AdminInventory: React.FC = () => {
 
     setTimeout(() => {
       setIsScanningActive(false);
-      const matched = products.find(
-        (p) =>
-          p.product_id.toLowerCase() === query ||
-          p.product_id.toLowerCase().includes(query) ||
-          p.product_name.toLowerCase().includes(query)
-      );
+      const matched = findProductByBarcode(products, codeToSearch, selectedScanProductIds);
 
       if (matched) {
+        if (selectedScanProductIds.includes(matched.product_id)) {
+          addToast('Already Added', `${matched.product_name} is already selected in this scan set and will not appear again.`, 'error');
+          return;
+        }
+
+        setSelectedScanProductIds((prev) => [...prev, matched.product_id]);
         setScannedProduct(matched);
         setHighlightedProductId(matched.product_id);
         setShowOnlyLowStock(false);
@@ -217,6 +265,17 @@ export const AdminInventory: React.FC = () => {
   const isLowStock = (p: Product) => p.stock < stockThreshold;
   const lowStockProducts = products.filter(isLowStock);
   const displayedProducts = showOnlyLowStock ? lowStockProducts : products;
+
+  const closeScanModal = () => {
+    stopCamera();
+    setIsScanModeOpen(false);
+    setSelectedScanProductIds([]);
+    setScannedProduct(null);
+    setScannedCodeInput('');
+    setCameraError('');
+  };
+
+  useEffect(() => () => stopCamera(), []);
 
   return (
     <div className="space-y-6">
@@ -648,7 +707,7 @@ export const AdminInventory: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-slate-900 text-slate-100 w-full max-w-xl rounded-3xl shadow-2xl border border-amber-500/40 p-6 space-y-5 relative overflow-hidden">
             <button
-              onClick={() => setIsScanModeOpen(false)}
+              onClick={closeScanModal}
               className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition"
             >
               <X className="w-5 h-5" />
@@ -671,21 +730,47 @@ export const AdminInventory: React.FC = () => {
               </div>
             </div>
 
-            {/* Viewport Laser Sweep Simulation */}
-            <div className="relative h-32 bg-slate-950 rounded-2xl border-2 border-dashed border-amber-500/40 flex flex-col items-center justify-center overflow-hidden p-4 shadow-inner">
-              {isScanningActive ? (
-                <div className="absolute inset-0 bg-amber-500/10 flex items-center justify-center">
-                  <div className="w-full h-1 bg-amber-500 shadow-[0_0_15px_#f59e0b] animate-pulse"></div>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px] text-slate-400">
+                Use your device camera to scan a product barcode, or continue with the USB scanner below.
+              </p>
+              <button
+                type="button"
+                onClick={isCameraOpen ? stopCamera : startCamera}
+                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] rounded-xl shadow transition shrink-0"
+              >
+                {isCameraOpen ? 'Stop Camera' : 'Use Camera'}
+              </button>
+            </div>
+
+            {/* Camera viewport */}
+            <div className="relative h-40 bg-slate-950 rounded-2xl border-2 border-dashed border-amber-500/40 flex flex-col items-center justify-center overflow-hidden shadow-inner">
+              <video
+                ref={cameraVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className={`absolute inset-0 h-full w-full object-cover ${isCameraOpen ? 'block' : 'hidden'}`}
+              />
+              {isCameraOpen ? (
+                <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 h-16 border-2 border-amber-400 rounded-xl shadow-[0_0_25px_rgba(245,158,11,0.7)]">
+                  <div className="absolute inset-x-0 top-1/2 h-0.5 bg-rose-500 shadow-[0_0_12px_#ef4444] animate-pulse" />
                 </div>
               ) : (
-                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-rose-500/80 shadow-[0_0_12px_#ef4444] animate-pulse"></div>
+                <>
+                  <QrCode className="w-10 h-10 text-slate-700/80 mb-1" />
+                  <p className="text-[11px] font-mono font-bold text-amber-400/90 text-center tracking-wider uppercase">
+                    {isScanningActive ? 'Decoding Optical Pattern...' : 'Camera is off'}
+                  </p>
+                </>
               )}
-
-              <QrCode className="w-10 h-10 text-slate-700/80 mb-1" />
-              <p className="text-[11px] font-mono font-bold text-amber-400/90 text-center tracking-wider uppercase">
-                {isScanningActive ? 'Decoding Optical Pattern...' : 'Awaiting Barcode Gun Laser Trigger...'}
-              </p>
             </div>
+
+            {cameraError && (
+              <p className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[11px] font-semibold text-rose-300">
+                {cameraError}
+              </p>
+            )}
 
             {/* Input Barcode / SKU field */}
             <form
@@ -703,7 +788,7 @@ export const AdminInventory: React.FC = () => {
                     autoFocus
                     value={scannedCodeInput}
                     onChange={(e) => setScannedCodeInput(e.target.value)}
-                    placeholder="Scan SKU barcode or type ID e.g. PROD-001..."
+                    placeholder="Scan barcode, SKU, or product ID e.g. 096168522623"
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 text-amber-200 placeholder-slate-500 border border-amber-500/40 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/30 text-xs font-mono font-bold"
                   />
                 </div>
@@ -722,22 +807,26 @@ export const AdminInventory: React.FC = () => {
                 Quick Barcode Test Simulator (Click product to simulate laser scan):
               </span>
               <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-slate-950 rounded-xl border border-slate-800">
-                {products.map((p) => (
-                  <button
-                    key={p.product_id}
-                    type="button"
-                    onClick={() => {
-                      setScannedCodeInput(p.product_id);
-                      handleProcessBarcodeScan(p.product_id);
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition border ${scannedProduct?.product_id === p.product_id
-                      ? 'bg-amber-500 text-slate-950 border-yellow-300 shadow font-black'
-                      : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border-slate-700'
-                      }`}
-                  >
-                    {p.product_id} ({p.product_name.slice(0, 14)})
-                  </button>
-                ))}
+                {availableProductsForScan.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 font-mono">All products in this scan set have already been selected.</p>
+                ) : (
+                  availableProductsForScan.map((p) => (
+                    <button
+                      key={p.product_id}
+                      type="button"
+                      onClick={() => {
+                        setScannedCodeInput(p.product_id);
+                        handleProcessBarcodeScan(p.product_id);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition border ${scannedProduct?.product_id === p.product_id
+                        ? 'bg-amber-500 text-slate-950 border-yellow-300 shadow font-black'
+                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border-slate-700'
+                        }`}
+                    >
+                      {p.product_id} ({p.product_name.slice(0, 14)})
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 
@@ -765,7 +854,7 @@ export const AdminInventory: React.FC = () => {
                   type="button"
                   onClick={() => {
                     handleOpenPurchaseEntry(scannedProduct);
-                    setIsScanModeOpen(false);
+                    closeScanModal();
                   }}
                   className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow transition shrink-0 border border-yellow-300 flex items-center gap-1"
                 >

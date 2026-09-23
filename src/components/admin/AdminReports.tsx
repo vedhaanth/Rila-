@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
-import { ProfitLossReport } from '../../types';
+import { Bill, ProfitLossReport } from '../../types';
 import { formatINR } from '../../utils/currency';
 import {
   BarChart3,
@@ -11,6 +11,7 @@ import {
   Printer,
   Calendar,
   FileSpreadsheet,
+  Download,
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react';
@@ -27,14 +28,19 @@ import {
 export const AdminReports: React.FC = () => {
   const { activeAdminId, refreshDataFlag, adminProfiles } = useApp();
   const [report, setReport] = useState<ProfitLossReport | null>(null);
+  const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
 
   const adminProfile = adminProfiles[activeAdminId];
 
   const fetchReport = async () => {
     setLoading(true);
-    const data = await api.getPnLReport(activeAdminId);
+    const [data, billData] = await Promise.all([
+      api.getPnLReport(activeAdminId),
+      api.getBills(activeAdminId)
+    ]);
     setReport(data);
+    setBills(billData);
     setLoading(false);
   };
 
@@ -44,6 +50,34 @@ export const AdminReports: React.FC = () => {
 
   const handlePrintPnlStatement = () => {
     window.print();
+  };
+
+  const gstBills = bills.filter((bill) => Boolean(String(bill.customer_gstin || '').trim()));
+  const nonGstBills = bills.filter((bill) => !String(bill.customer_gstin || '').trim());
+
+  const exportTaxReport = (reportBills: Bill[], label: string) => {
+    if (reportBills.length === 0) return;
+
+    const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const rows = [
+      ['Invoice Number', 'Date', 'Customer', 'Customer GSTIN', 'Subtotal', 'GST', 'Grand Total', 'Amount Paid', 'Payment Method'],
+      ...reportBills.map((bill) => [
+        bill.invoice_number,
+        bill.created_at,
+        bill.customer_name,
+        bill.customer_gstin || '',
+        bill.subtotal ?? 0,
+        bill.tax_gst ?? 0,
+        bill.grand_total ?? 0,
+        bill.amount_paid ?? 0,
+        bill.payment_method || bill.payment_mode || ''
+      ])
+    ];
+    const csv = rows.map((row) => row.map(escapeCsv).join(',')).join('\n');
+    const anchor = document.createElement('a');
+    anchor.href = `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
+    anchor.download = `${label.toLowerCase().replace(/\s+/g, '_')}_report_${new Date().toISOString().split('T')[0]}.csv`;
+    anchor.click();
   };
 
   const marginPercent = report && report.sales_revenue > 0
@@ -123,6 +157,66 @@ export const AdminReports: React.FC = () => {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      {/* Separate GST and non-GST invoice reports */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        {[
+          { title: 'GST Invoice Report', label: 'GST', reportBills: gstBills, accent: 'indigo' },
+          { title: 'Non-GST Invoice Report', label: 'Non-GST', reportBills: nonGstBills, accent: 'slate' }
+        ].map(({ title, label, reportBills, accent }) => {
+          const reportTotal = reportBills.reduce((sum, bill) => sum + (bill.grand_total ?? 0), 0);
+          const reportTax = reportBills.reduce((sum, bill) => sum + (bill.tax_gst ?? 0), 0);
+
+          return (
+            <div key={label} className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">{title}</h3>
+                  <p className="text-[11px] text-slate-500 mt-1">{reportBills.length} invoice(s) based on customer GSTIN</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => exportTaxReport(reportBills, label)}
+                  disabled={reportBills.length === 0}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition ${accent === 'indigo' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-slate-700 hover:bg-slate-800'} text-white disabled:bg-slate-300 disabled:cursor-not-allowed`}
+                >
+                  <Download className="w-3.5 h-3.5" /> Export CSV
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800">
+                  <span className="text-slate-500 block">Invoice Total</span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">{formatINR(reportTotal)}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800">
+                  <span className="text-slate-500 block">GST Collected</span>
+                  <span className="font-mono font-bold text-emerald-600">{formatINR(reportTax)}</span>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-[11px]">
+                  <thead className="text-slate-500 border-b border-slate-200 dark:border-slate-700">
+                    <tr><th className="py-2 pr-3">Invoice</th><th className="py-2 pr-3">Customer</th><th className="py-2 text-right">Total</th></tr>
+                  </thead>
+                  <tbody>
+                    {reportBills.slice(0, 8).map((bill) => (
+                      <tr key={bill.bill_id} className="border-b border-slate-100 dark:border-slate-800">
+                        <td className="py-2 pr-3 font-mono">{bill.invoice_number}</td>
+                        <td className="py-2 pr-3 text-slate-600 dark:text-slate-300">{bill.customer_name}</td>
+                        <td className="py-2 text-right font-mono font-bold">{formatINR(bill.grand_total ?? 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {reportBills.length > 8 && <p className="text-[10px] text-slate-400 mt-2">Showing first 8 invoices. Export CSV contains all invoices.</p>}
+                {reportBills.length === 0 && <p className="text-xs text-slate-500 py-3">No invoices in this report.</p>}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Detailed P&L Statement Table */}

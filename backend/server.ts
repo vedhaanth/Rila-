@@ -149,6 +149,36 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
+function normalizeBarcode(value: string): string {
+  return String(value || '').trim().replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+
+async function ensureUniqueBarcode(barcode: string, excludeProductId?: string) {
+  const normalized = normalizeBarcode(barcode);
+  if (!normalized) return;
+
+  if (mongoose.connection.readyState !== 1) {
+    const duplicate = fallbackState.products.some((product) => {
+      const sameProduct = excludeProductId ? product.product_id !== excludeProductId : true;
+      return sameProduct && normalizeBarcode(product.barcode || '') === normalized;
+    });
+
+    if (duplicate) {
+      throw new Error('This barcode is already assigned to another product. Please use a unique barcode for each item.');
+    }
+    return;
+  }
+
+  const duplicate = await ProductModel.findOne({
+    barcode: { $exists: true, $ne: '' },
+    product_id: excludeProductId ? { $ne: excludeProductId } : { $ne: null }
+  }).lean();
+
+  if (duplicate && normalizeBarcode(duplicate.barcode || '') === normalized) {
+    throw new Error('This barcode is already assigned to another product. Please use a unique barcode for each item.');
+  }
+}
+
 async function seedDatabase() {
   const db = mongoose.connection.db;
   if (!db) return;
@@ -861,9 +891,14 @@ export async function startServer(app: express.Express, shouldListen = true) {
         return res.status(400).json({ error: 'Missing required product fields' });
       }
 
+      if (pData.barcode) {
+        await ensureUniqueBarcode(pData.barcode);
+      }
+
       if (isFallbackMode(lastDbError)) {
         const newProduct = {
           product_id: `PROD-${Date.now().toString().slice(-4)}`,
+          barcode: String(pData.barcode || '').trim(),
           product_name: pData.product_name,
           category: pData.category || 'General',
           image: pData.image || '',
@@ -885,6 +920,7 @@ export async function startServer(app: express.Express, shouldListen = true) {
 
       const newProduct = new ProductModel({
         product_id: `PROD-${Date.now().toString().slice(-4)}`,
+        barcode: String(pData.barcode || '').trim(),
         product_name: pData.product_name,
         category: pData.category || 'General',
         image: pData.image || '',
@@ -910,6 +946,10 @@ export async function startServer(app: express.Express, shouldListen = true) {
   app.put('/api/products/:id', async (req, res) => {
     try {
       const updateData = { ...req.body };
+      if (updateData.barcode !== undefined) updateData.barcode = String(updateData.barcode || '').trim();
+      if (updateData.barcode) {
+        await ensureUniqueBarcode(updateData.barcode, req.params.id);
+      }
       if (updateData.price !== undefined) updateData.price = Number(updateData.price);
       if (updateData.stock !== undefined) updateData.stock = Number(updateData.stock);
 
@@ -1347,6 +1387,8 @@ export async function startServer(app: express.Express, shouldListen = true) {
         products,
         payment_method,
         amount_paid,
+        cash_amount_paid,
+        upi_amount_paid,
         sale_type,
         discount_flat,
         notes
@@ -1435,6 +1477,8 @@ export async function startServer(app: express.Express, shouldListen = true) {
           payment_method: payment_method || 'Cash',
           payment_status,
           amount_paid: amountPaid,
+          cash_amount_paid: Number(cash_amount_paid || 0),
+          upi_amount_paid: Number(upi_amount_paid || 0),
           previous_balance_due,
           balance_due,
           sale_type: sale_type || 'Retail',
@@ -1490,6 +1534,8 @@ export async function startServer(app: express.Express, shouldListen = true) {
         payment_method: payment_method || 'Cash',
         payment_status,
         amount_paid: amountPaid,
+        cash_amount_paid: Number(cash_amount_paid || 0),
+        upi_amount_paid: Number(upi_amount_paid || 0),
         previous_balance_due,
         balance_due,
         sale_type: sale_type || 'Retail',

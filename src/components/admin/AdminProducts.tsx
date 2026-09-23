@@ -31,6 +31,7 @@ export const AdminProducts: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [formData, setFormData] = useState({
+    barcode: '',
     product_name: '',
     category: 'Laptops',
     description: '',
@@ -57,6 +58,7 @@ export const AdminProducts: React.FC = () => {
   const handleOpenAddModal = () => {
     setEditingProduct(null);
     setFormData({
+      barcode: '',
       product_name: '',
       category: activeAdminId === 'admin1' ? 'Healthy Snacks' : 'Savouries & Namkeen',
       description: '',
@@ -82,6 +84,7 @@ export const AdminProducts: React.FC = () => {
   const handleOpenEditModal = (p: Product) => {
     setEditingProduct(p);
     setFormData({
+      barcode: p.barcode || '',
       product_name: p.product_name,
       category: p.category,
       description: p.description,
@@ -99,6 +102,20 @@ export const AdminProducts: React.FC = () => {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const normalizedBarcode = formData.barcode?.trim();
+      const duplicateBarcode = products.some(
+        (product) =>
+          product.product_id !== editingProduct?.product_id &&
+          product.barcode &&
+          normalizedBarcode &&
+          product.barcode.replace(/[^a-z0-9]/gi, '').toLowerCase() === normalizedBarcode.replace(/[^a-z0-9]/gi, '').toLowerCase()
+      );
+
+      if (duplicateBarcode) {
+        addToast('Duplicate Barcode', 'This barcode is already assigned to another product. Please use a unique barcode.', 'error');
+        return;
+      }
+
       if (editingProduct) {
         await api.updateProduct(editingProduct.product_id, {
           ...formData,
@@ -325,6 +342,17 @@ export const AdminProducts: React.FC = () => {
             </h3>
 
             <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Barcode / SKU</label>
+                <input
+                  type="text"
+                  value={formData.barcode}
+                  onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                  placeholder="e.g. 096168522623"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
+                />
+              </div>
+
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Product Name</label>
                 <input

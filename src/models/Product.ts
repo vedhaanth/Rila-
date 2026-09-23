@@ -8,6 +8,7 @@ export interface ProductDocument extends Omit<Product, 'product_id'>, Document {
 const ProductSchema: Schema = new Schema(
   {
     product_id: { type: String, required: true, unique: true },
+    barcode: { type: String, default: '' },
     product_name: { type: String, required: true },
     category: { type: String, required: true },
     image: { type: String, default: '' },

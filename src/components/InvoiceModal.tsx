@@ -65,6 +65,8 @@ export const InvoiceModal: React.FC = () => {
   const bill = viewingInvoice as Bill;
   const previousBalanceDue = isBill ? (bill.previous_balance_due ?? 0) : 0;
   const amountPaid = isBill ? (bill.amount_paid ?? grandTotal) : grandTotal;
+  const cashAmountPaid = isBill ? (bill.cash_amount_paid ?? 0) : 0;
+  const upiAmountPaid = isBill ? (bill.upi_amount_paid ?? 0) : 0;
   const balanceDue = isBill ? (bill.balance_due ?? Math.max(0, grandTotal - amountPaid)) : 0;
   const paymentStatus = isBill ? (bill.payment_status || (balanceDue > 0 ? 'Pending' : 'Paid')) : 'Paid';
 
@@ -155,6 +157,12 @@ export const InvoiceModal: React.FC = () => {
                 <p className="font-bold text-slate-900">Invoice No: {invoiceNumber}</p>
                 <p>Date: {createdAt}</p>
                 <p>Payment Mode: <span className="font-semibold text-emerald-700">{paymentMethod}</span></p>
+                {paymentMethod === 'UPI + Cash' && (
+                  <>
+                    <p>Cash Paid: <span className="font-semibold">{formatINR(cashAmountPaid)}</span></p>
+                    <p>UPI Paid: <span className="font-semibold">{formatINR(upiAmountPaid)}</span></p>
+                  </>
+                )}
                 <p className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-sans text-[11px] font-bold ${paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
                   <CheckCircle2 className="w-3 h-3" /> {paymentStatus}
                 </p>
