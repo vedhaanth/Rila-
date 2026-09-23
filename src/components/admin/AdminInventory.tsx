@@ -59,6 +59,7 @@ export const AdminInventory: React.FC = () => {
   const [isScanningActive, setIsScanningActive] = useState(false);
   const [selectedScanProductIds, setSelectedScanProductIds] = useState<string[]>([]);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isCameraStarting, setIsCameraStarting] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
   const cameraControlsRef = useRef<{ stop: () => void } | null>(null);
@@ -68,7 +69,11 @@ export const AdminInventory: React.FC = () => {
   const stopCamera = () => {
     cameraControlsRef.current?.stop();
     cameraControlsRef.current = null;
+    cameraVideoRef.current?.srcObject &&
+      (cameraVideoRef.current.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
+    if (cameraVideoRef.current) cameraVideoRef.current.srcObject = null;
     setIsCameraOpen(false);
+    setIsCameraStarting(false);
   };
 
   const startCamera = async () => {
@@ -76,11 +81,19 @@ export const AdminInventory: React.FC = () => {
 
     setCameraError('');
     setIsCameraOpen(true);
+    setIsCameraStarting(true);
 
     try {
       const reader = new BrowserMultiFormatReader();
-      cameraControlsRef.current = await reader.decodeFromVideoDevice(
-        undefined,
+      cameraControlsRef.current = await reader.decodeFromConstraints(
+        {
+          audio: false,
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        },
         cameraVideoRef.current,
         (result) => {
           if (!result) return;
@@ -91,12 +104,17 @@ export const AdminInventory: React.FC = () => {
           handleProcessBarcodeScan(scannedValue);
         }
       );
+      setIsCameraStarting(false);
     } catch (error: any) {
-      setIsCameraOpen(false);
+      stopCamera();
       setCameraError(
         error?.name === 'NotAllowedError'
           ? 'Camera permission was blocked. Allow camera access in the browser address bar and try again.'
-          : 'Camera could not start. Use HTTPS or localhost, then try again.'
+          : error?.name === 'NotFoundError'
+            ? 'No camera was found on this device.'
+            : error?.name === 'NotReadableError'
+              ? 'The camera is already being used by another app. Close it and try again.'
+              : 'Camera could not start. Use HTTPS or localhost, then try again.'
       );
     }
   };
@@ -737,9 +755,10 @@ export const AdminInventory: React.FC = () => {
               <button
                 type="button"
                 onClick={isCameraOpen ? stopCamera : startCamera}
+                disabled={isCameraStarting}
                 className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] rounded-xl shadow transition shrink-0"
               >
-                {isCameraOpen ? 'Stop Camera' : 'Use Camera'}
+                {isCameraStarting ? 'Starting Camera...' : isCameraOpen ? 'Stop Camera' : 'Use Camera'}
               </button>
             </div>
 
@@ -760,7 +779,7 @@ export const AdminInventory: React.FC = () => {
                 <>
                   <QrCode className="w-10 h-10 text-slate-700/80 mb-1" />
                   <p className="text-[11px] font-mono font-bold text-amber-400/90 text-center tracking-wider uppercase">
-                    {isScanningActive ? 'Decoding Optical Pattern...' : 'Camera is off'}
+                    {isCameraStarting ? 'Requesting Camera Permission...' : isScanningActive ? 'Decoding Optical Pattern...' : 'Camera is off'}
                   </p>
                 </>
               )}
