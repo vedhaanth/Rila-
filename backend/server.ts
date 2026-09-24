@@ -70,9 +70,9 @@ function createFallbackState(): FallbackState {
         email: 'admin1@smartretail.com',
         password: admin1Password,
         business_name: 'Apex Tech & Electronics',
-        phone: '+1 234 567 8900',
-        gstin: '27AADCB2230M1Z2',
-        address: '123 Tech Park, Silicon Valley, CA',
+        phone: '9944633313',
+        gstin: '33ATQPM2275G3ZG',
+        address: '536/D, Meeran Compound, Dindigul Main Road, New Ayakudi - 624613',
         categories: ['Electronics', 'Gadgets'],
         createdAt: now,
         updatedAt: now
@@ -83,9 +83,9 @@ function createFallbackState(): FallbackState {
         email: 'admin2@smartretail.com',
         password: admin2Password,
         business_name: 'Vogue & Living Retail',
-        phone: '+1 987 654 3210',
-        gstin: '27AADCB2230M1Z3',
-        address: '456 Fashion Ave, New York, NY',
+        phone: '9944633313',
+        gstin: '33ATQPM2275G3ZG',
+        address: '536/D, Meeran Compound, Dindigul Main Road, New Ayakudi - 624613',
         categories: ['Clothing', 'Home'],
         createdAt: now,
         updatedAt: now
@@ -201,9 +201,9 @@ async function seedDatabase() {
       email: (process.env.ADMIN_1_EMAIL || 'admin1@smartretail.com').toLowerCase(),
       rawPassword: process.env.ADMIN_1_PASSWORD || 'admin123',
       business_name: process.env.ADMIN_1_BUSINESS || 'Apex Tech & Electronics',
-      phone: '+1 234 567 8900',
-      gstin: '27AADCB2230M1Z2',
-      address: '123 Tech Park, Silicon Valley, CA',
+      phone: process.env.ADMIN_1_PHONE || '9944633313',
+      gstin: process.env.ADMIN_1_GSTIN || '33ATQPM2275G3ZG',
+      address: process.env.ADMIN_1_ADDRESS || '536/D, Meeran Compound, Dindigul Main Road, New Ayakudi - 624613',
       categories: ['Electronics', 'Gadgets']
     },
     {
@@ -212,9 +212,9 @@ async function seedDatabase() {
       email: (process.env.ADMIN_2_EMAIL || 'admin2@smartretail.com').toLowerCase(),
       rawPassword: process.env.ADMIN_2_PASSWORD || 'admin123',
       business_name: process.env.ADMIN_2_BUSINESS || 'Vogue & Living Retail',
-      phone: '+1 987 654 3210',
-      gstin: '27AADCB2230M1Z3',
-      address: '456 Fashion Ave, New York, NY',
+      phone: process.env.ADMIN_2_PHONE || '9944633313',
+      gstin: process.env.ADMIN_2_GSTIN || '33ATQPM2275G3ZG',
+      address: process.env.ADMIN_2_ADDRESS || '536/D, Meeran Compound, Dindigul Main Road, New Ayakudi - 624613',
       categories: ['Clothing', 'Home']
     }
   ];
