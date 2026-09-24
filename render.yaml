@@ -18,3 +18,7 @@ services:
         sync: false
       - key: VITE_API_URL
         sync: false
+      - key: ADMIN_1_BUSINESS
+        value: "MUSTHAFA TRADERS"
+      - key: ADMIN_2_BUSINESS
+        value: "MUSTHAFA TRADERS"
