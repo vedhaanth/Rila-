@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
-import { Settings, Shield, Building2, Mail, Save, QrCode } from 'lucide-react';
+import { Settings, Shield, Building2, Mail, Phone, Save, QrCode } from 'lucide-react';
 
 export const AdminSettings: React.FC = () => {
   const { activeAdminId, addToast, adminProfiles, triggerRefresh } = useApp();
@@ -10,6 +10,7 @@ export const AdminSettings: React.FC = () => {
   const [businessName, setBusinessName] = useState(profile?.business_name || '');
   const [adminName, setAdminName] = useState(profile?.admin_name || '');
   const [email, setEmail] = useState(profile?.email || '');
+  const [phone, setPhone] = useState(profile?.phone || '');
   const [gstin, setGstin] = useState(profile?.gstin || '');
   const [address, setAddress] = useState(profile?.address || '');
   const [upiVpa, setUpiVpa] = useState(`${activeAdminId}@icici`);
@@ -19,6 +20,7 @@ export const AdminSettings: React.FC = () => {
       setBusinessName(profile.business_name || '');
       setAdminName(profile.admin_name || '');
       setEmail(profile.email || '');
+      setPhone(profile.phone || '');
       setGstin(profile.gstin || '');
       setAddress(profile.address || '');
       setUpiVpa(`${activeAdminId}@icici`);
@@ -32,6 +34,7 @@ export const AdminSettings: React.FC = () => {
         business_name: businessName,
         admin_name: adminName,
         email: email,
+        phone: phone,
         gstin: gstin,
         address: address
       });
@@ -110,6 +113,22 @@ export const AdminSettings: React.FC = () => {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500 font-mono"
             />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Official Store Phone Number
+            </label>
+            <div className="relative">
+              <Phone className="w-4 h-4 text-indigo-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="tel"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500 font-mono"
+              />
+            </div>
           </div>
 
           <div className="md:col-span-2">
